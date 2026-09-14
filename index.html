@@ -209,6 +209,12 @@
   .tier-price{font-weight:800;font-size:26px;margin:6px 0;}
   .disclosure summary{cursor:pointer;font-size:13.5px;font-weight:600;color:var(--coral-dark);margin-top:8px;}
   .disclosure ol{font-size:13.5px;color:var(--ink-mid);line-height:1.6;padding-left:18px;margin-top:10px;}
+  /* ---------- SUPPORTERS WALL ---------- */
+  .wall-names{display:flex;flex-wrap:wrap;gap:10px;}
+  .wall-name{
+    background:var(--card);border:1px solid var(--hairline);border-radius:999px;
+    padding:9px 16px;font-size:14px;font-weight:600;color:var(--ink-mid);
+  }
   /* ---------- ABOUT ---------- */
   .committee-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:18px;margin:28px 0;}
   .committee-card{border-radius:18px;padding:20px;text-align:center;}
@@ -287,6 +293,7 @@
       <h4>About</h4>
       <a href="#" data-nav="about">Committee & minutes</a>
       <a href="#" data-nav="money">Where the money goes</a>
+      <a href="./assets/Minster-More-brand-and-mission.pdf" target="_blank" rel="noopener">Brand & mission document</a>
     </div>
   </div>
   <div class="wrap charity-line">Minster More (formerly MSPTA) is a registered charity in England and Wales, number 516332.</div>
@@ -302,6 +309,7 @@ const NAV = [
   {key:'suggest', label:'Suggest & vote'},
   {key:'events', label:'Events & tickets'},
   {key:'give', label:'Ways to give'},
+  {key:'wall', label:'Supporters wall'},
   {key:'about', label:'About'},
   {key:'logo', label:'Logo routes'},
 ];
@@ -346,6 +354,26 @@ const committee = [
 ];
 
 const minutes = ['July 2026','May 2026','March 2026','January 2026','November 2025','September 2025'];
+
+const supporters = {
+  futureMakers: [
+    'The Ashworth family','Priya & Dev Kapoor','The Ellison family','Sam Whitfield','The Ogundipe family',
+    'Claire & Mark Dunmore','The Featherstone family','Nadia Hussain','The Cross family','Tom & Lisa Peverell',
+  ],
+  local: [
+    {name:'Southwell Community Choir', note:'Volunteers at every event'},
+    {name:'The Riverside Café', note:'Donates cakes for the Autumn Fair'},
+    {name:'Minster Scouts, 1st Southwell', note:'Marshals the Fireworks Night'},
+  ],
+  businesses: [
+    {name:'Thackeray & Co Solicitors', tier:'Pot sponsor', note:'Sponsoring the Recital Hall Chairs pot'},
+    {name:'Southwell Physio Clinic', tier:'Partner', note:'Supporting Quiz Night since 2024'},
+    {name:'Ridgeway Motors', tier:'Partner', note:'Supplied the raffle prize for Spring Ball'},
+    {name:'Bramley & Finch Estate Agents', tier:'Supporter', note:'Logo on site and newsletter'},
+    {name:'Newark Print Studio', tier:'Supporter', note:'Prints every raffle ticket at cost'},
+    {name:'The Bookcase, Southwell', tier:'Supporter', note:'Hosts our termly book swap'},
+  ],
+};
 
 /* ---------------- STATE ---------------- */
 let page = 'home';
@@ -805,6 +833,18 @@ function pageAbout(){
               <span style="font-size:14.5px;">${m}</span>
               <span class="pdf-tag">PDF</span>
             </div>`).join('')}
+
+          <div class="section-head" style="margin-top:32px;"><h2>Brand & mission document</h2></div>
+          <div class="hairline-card small-card" style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;">
+            <div>
+              <h3 style="margin-bottom:4px;">Minster More — brand and mission</h3>
+              <p style="margin-bottom:0;">Purpose, vision, mission, the funding model and full brand guidelines, in one document.</p>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <a class="btn btn-ghost btn-small" href="./assets/Minster-More-brand-and-mission.pdf" target="_blank" rel="noopener">View</a>
+              <a class="btn btn-ink btn-small" href="./assets/Minster-More-brand-and-mission.pdf" download>Download</a>
+            </div>
+          </div>
         </div>
         <div class="form-panel" style="position:static;">
           <h3>Come to a meeting</h3>
@@ -886,6 +926,46 @@ function pageLogo(){
   `;
 }
 
+function pageWall(){
+  return `
+    <div class="wrap page-head">
+      <div class="eyebrow">Supporters wall</div>
+      <h1>Everyone who makes more possible.</h1>
+      <p class="intro">Future Makers members, local groups and business sponsors — thank you. Become a <a href="#" data-nav="give" style="color:var(--coral-dark);font-weight:600;">Future Maker</a> or <a href="#" data-nav="give" style="color:var(--coral-dark);font-weight:600;">sponsor a pot</a> to be featured here.</p>
+    </div>
+    <div class="wrap">
+      <div class="section-head"><h2>Future Makers</h2></div>
+      <div class="wall-names">
+        ${supporters.futureMakers.map(n=>`<span class="wall-name">${n}</span>`).join('')}
+      </div>
+
+      <div class="section-head" style="margin-top:48px;"><h2>Local partners</h2></div>
+      <div class="grid3">
+        ${supporters.local.map(s=>`
+          <div class="hairline-card small-card">
+            <h3>${s.name}</h3>
+            <p>${s.note}</p>
+          </div>`).join('')}
+      </div>
+
+      <div class="section-head" style="margin-top:48px;"><h2>Business sponsors</h2></div>
+      <div class="grid3">
+        ${supporters.businesses.map(b=>`
+          <div class="hairline-card small-card">
+            <span class="chip chip-cyan">${b.tier}</span>
+            <h3 style="margin-top:12px;">${b.name}</h3>
+            <p>${b.note}</p>
+          </div>`).join('')}
+      </div>
+
+      <div class="volunteer-strip" style="margin-top:48px;">
+        <h2>Want your name or business up here?</h2>
+        <button class="btn btn-ink" data-nav="give">See ways to give</button>
+      </div>
+    </div>
+  `;
+}
+
 /* ---------------- BASKET MODAL ---------------- */
 function renderModal(open){
   const root = document.getElementById('modalRoot');
@@ -941,6 +1021,7 @@ function render(){
   else if(page==='suggest') html = pageSuggest();
   else if(page==='events') html = pageEvents();
   else if(page==='give') html = pageGive();
+  else if(page==='wall') html = pageWall();
   else if(page==='about') html = pageAbout();
   else if(page==='logo') html = pageLogo();
   app.innerHTML = html;
