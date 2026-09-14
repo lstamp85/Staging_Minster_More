@@ -1,0 +1,8 @@
+{
+  "name": "minster-more-staging",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "npx serve -s . -l $PORT"
+  }
+}
