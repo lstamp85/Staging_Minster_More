@@ -40,6 +40,18 @@ app.use((req, res, next) => {
 const MAX_DONATION = 1_000_000; // £10,000 in pence
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const EASYFUNDRAISING_URL = 'https://www.easyfundraising.org.uk/causes/msptasouthwell/';
+
+// The 50:50 Club is open by default for the current school term.
+// Admins can name the term themselves, or type CLOSED to stop entries.
+function currentTerm(label) {
+  if (label && label.trim().toUpperCase() === 'CLOSED') return null;
+  if (label && label.trim()) return label.trim();
+  const now = new Date();
+  const m = now.getMonth() + 1, y = now.getFullYear();
+  return m >= 9 ? `Autumn term ${y}` : m <= 3 ? `Spring term ${y}` : `Summer term ${y}`;
+}
+
 function str(v, max = 200) {
   return typeof v === 'string' ? v.trim().slice(0, max) : '';
 }
@@ -234,7 +246,11 @@ app.get('/api/site', async (req, res) => {
     })));
 
     siteCache = {
-      settings: settings.data,
+      settings: {
+        ...settings.data,
+        easyfundraising_url: settings.data.easyfundraising_url || EASYFUNDRAISING_URL,
+        fifty_term_label: currentTerm(settings.data.fifty_term_label),
+      },
       raised_pence: funds.data.reduce((s, f) => s + f.amount_pence, 0),
       pots: pots.data,
       ideas: ideas.data.map(i => ({ ...i, votes: voteMap[i.id] || 0 })).sort((a, b) => b.votes - a.votes),
@@ -348,11 +364,12 @@ app.post('/api/checkout', rateLimit(10), async (req, res) => {
         lineItems.push({ quantity: 1, price_data: { currency: 'gbp', unit_amount: 1000, recurring: { interval: 'month' }, product_data: { name: 'Future Makers — £10 a month' } } });
       } else if (it.kind === 'fifty') {
         const qty = int(it.qty);
-        if (!settings.fifty_term_label) throw new Error('The 50:50 Club isn’t open for entries right now.');
+        const term = currentTerm(settings?.fifty_term_label);
+        if (!term) throw new Error('The 50:50 Club isn’t open for entries right now.');
         if (it.over18 !== true) throw new Error('You must be 18 or over to join the 50:50 Club.');
         if (!(qty >= 1 && qty <= 20)) throw new Error('Up to 20 numbers each.');
-        items.push({ kind: 'fifty', label: '50:50 Club number', qty, unit_pence: 1000, term_label: settings.fifty_term_label });
-        lineItems.push({ quantity: qty, price_data: { currency: 'gbp', unit_amount: 1000, product_data: { name: `50:50 Club number — ${settings.fifty_term_label}` } } });
+        items.push({ kind: 'fifty', label: '50:50 Club number', qty, unit_pence: 1000, term_label: term });
+        lineItems.push({ quantity: qty, price_data: { currency: 'gbp', unit_amount: 1000, product_data: { name: `50:50 Club number — ${term}` } } });
       }
     }
   } catch (err) {

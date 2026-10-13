@@ -236,9 +236,17 @@
   .stepper{display:flex;align-items:center;gap:16px;margin:18px 0;}
   .stepper button{width:42px;height:42px;border-radius:999px;border:2px solid var(--ink);font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;}
   .stepper .count{font-family:'Archivo',sans-serif;font-weight:800;font-size:26px;min-width:28px;text-align:center;}
-  .small-card{border-radius:20px;padding:24px;}
+  .small-card{border-radius:20px;padding:24px;display:flex;flex-direction:column;align-items:flex-start;}
+  .small-card p{flex:1;}
   .small-card h3{font-size:18px;margin:0 0 8px;}
   .small-card p{font-size:14px;color:var(--ink-mid);line-height:1.5;margin:0 0 14px;}
+  .fifty-split{margin:14px 0 12px;display:grid;gap:6px;}
+  .fs-row{display:flex;justify-content:space-between;gap:12px;align-items:center;background:oklch(0.24 0.05 258 / 0.05);border-radius:10px;padding:10px 14px;font-size:14px;}
+  .fs-row b{font-family:'Archivo',sans-serif;font-size:17px;}
+  .fs-students{background:var(--tint);}
+  .fs-prizes{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+  .fs-prizes div{border:1px solid var(--hairline);border-radius:10px;padding:8px 10px;font-size:12.5px;color:var(--ink-mid);display:grid;gap:2px;}
+  .fs-prizes b{font-family:'Archivo',sans-serif;font-size:16px;color:var(--ink);}
   .sponsor-panel{background:var(--tint);border-radius:24px;padding:34px;}
   .sponsor-panel h2{margin:0 0 8px;font-size:28px;}
   .tier-card{background:var(--card);border-radius:18px;padding:22px;text-align:center;}
@@ -669,9 +677,15 @@ function pageGive(){
   const s = data.settings;
   const fiftyOpen = Boolean(s.fifty_term_label);
   const links = [
-    s.easyfundraising_url && {t:'easyfundraising', b:'Shop online as normal and retailers donate a percentage — at no cost to you.', u:s.easyfundraising_url, l:'Get started'},
+    s.easyfundraising_url && {t:'easyfundraising', b:'Shop online with thousands of retailers and they donate to Minster More at no extra cost to you. Sign up once and every order counts.', u:s.easyfundraising_url, l:'Get started'},
     s.coop_url && {t:'Co-op Local Community Fund', b:'Co-op members can choose Minster More as their local cause.', u:s.coop_url, l:'Choose us'},
   ].filter(Boolean);
+  const otherWays = `
+          <div class="hairline-card small-card other-ways">
+            <h3>Want to give in other ways?</h3>
+            <p>We're always looking for specialist skills, raffle prizes, event help and donated goods. If you can offer something, we'd love to hear from you at <b>${EMAIL.hello}</b>.</p>
+            <a class="btn btn-ink btn-small" href="mailto:${EMAIL.hello}?subject=${encodeURIComponent('Giving in other ways')}">Email us</a>
+          </div>`;
   return `
     <div class="wrap page-head">
       <div class="eyebrow">Ways to give</div>
@@ -700,7 +714,17 @@ function pageGive(){
         <div class="white-card">
           <div class="eyebrow">Termly draw</div>
           <h3 style="margin:8px 0 10px;">50:50 Club</h3>
-          <p style="font-size:14.5px;color:var(--ink-mid);line-height:1.55;margin:0;">£10 buys one number for the term. Half the pot is shared between three winners; half funds student resources. 18+ only.</p>
+          <p style="font-size:14.5px;color:var(--ink-mid);line-height:1.55;margin:0;">£10 buys one number for the whole term. Every pound raised is split in two:</p>
+          <div class="fifty-split">
+            <div class="fs-row fs-students"><span>Student resources</span><b>50%</b></div>
+            <div class="fs-row"><span>Prize fund, shared by three winners</span><b>50%</b></div>
+            <div class="fs-prizes">
+              <div><b>1st</b><span>half the prize fund</span></div>
+              <div><b>2nd</b><span>a quarter</span></div>
+              <div><b>3rd</b><span>a quarter</span></div>
+            </div>
+          </div>
+          <p class="note" style="margin:0;">Example: if 100 numbers are sold (£1,000), £500 goes to students, the 1st prize is £250, and 2nd and 3rd win £125 each. 18+ only.</p>
           ${fiftyOpen && data.payments ? `
             <div class="stepper">
               <button id="fiftyMinus" aria-label="Fewer numbers">−</button>
@@ -715,8 +739,9 @@ function pageGive(){
             <ol>
               <li>Open to over-18s connected to The Minster School community.</li>
               <li>One number costs £10 per term.</li>
-              <li>Three winners are drawn at random at the end of each term.</li>
-              <li>Half the pot is split between the three winners; the other half goes to student resources.</li>
+              <li>Three numbers are drawn at random at the end of each term, for 1st, 2nd and 3rd prize.</li>
+              <li>Half of the money raised each term goes to student resources. The other half is the prize fund.</li>
+              <li>The prize fund is shared: 1st prize receives 50% of it, 2nd and 3rd prizes receive 25% each.</li>
               <li>Winners are notified by email within 48 hours.</li>
               <li>Numbers do not carry over between terms.</li>
               <li>The draw is run and witnessed by two committee members.</li>
@@ -725,13 +750,14 @@ function pageGive(){
         </div>
       </div>
 
-      ${links.length ? `<div class="grid3" style="margin-bottom:24px;">
+      <div class="${links.length === 1 ? 'grid2' : 'grid3'}" style="margin-bottom:24px;">
         ${links.map(l=>`
           <div class="hairline-card small-card">
             <h3>${l.t}</h3><p>${l.b}</p>
-            <a class="btn btn-ghost btn-small" href="${esc(l.u)}" target="_blank" rel="noopener">${l.l}</a>
+            <a class="btn btn-ink btn-small" href="${esc(l.u)}" target="_blank" rel="noopener">${l.l}</a>
           </div>`).join('')}
-      </div>` : ''}
+        ${otherWays}
+      </div>
 
       <div class="sponsor-panel">
         <h2>Local business partners</h2>
@@ -739,7 +765,7 @@ function pageGive(){
         <div class="grid3" style="margin-top:20px;">
           <div class="tier-card"><div style="font-weight:700;">Supporter</div><div class="tier-price">£250</div><div class="note">Name and logo on the site</div></div>
           <div class="tier-card"><div style="font-weight:700;">Partner</div><div class="tier-price">£750</div><div class="note">Logo plus event mentions</div></div>
-          <div class="tier-card"><div style="font-weight:700;">Pot sponsor</div><div class="tier-price">£1,500</div><div class="note">Your name on a funding pot</div></div>
+          <div class="tier-card"><div style="font-weight:700;">Pot sponsor</div><div class="tier-price"><span style="font-size:15px;font-weight:600;">From </span>£1,500</div><div class="note">Your name on a funding pot</div></div>
         </div>
         <a class="btn btn-ink" style="margin-top:20px;" href="mailto:${EMAIL.hello}?subject=${encodeURIComponent('Business partnership')}">Talk to us about a partnership</a>
       </div>

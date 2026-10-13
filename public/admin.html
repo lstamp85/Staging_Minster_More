@@ -436,7 +436,11 @@ async function fiftyView(){
   const settings = check(await sb.from('settings').select('fifty_term_label').eq('id',1).single());
   const items = check(await sb.from('order_items').select('qty, term_label, created_at, orders!inner(name,email,status)').eq('kind','fifty').eq('orders.status','paid').order('created_at'));
   const terms = [...new Set(items.map(i=>i.term_label).filter(Boolean))].reverse();
-  const term = sub || settings.fifty_term_label || terms[0] || '';
+  const raw = (settings.fifty_term_label||'').trim();
+  const m = new Date().getMonth()+1, y = new Date().getFullYear();
+  const live = raw.toUpperCase()==='CLOSED' ? null : (raw || (m>=9?`Autumn term ${y}`:m<=3?`Spring term ${y}`:`Summer term ${y}`));
+  settings.fifty_term_label = live;
+  const term = sub || live || terms[0] || '';
   const rows = items.filter(i=>i.term_label===term);
   let n = 0;
   const entries = rows.map(r=>{ const from = n+1; n += r.qty; return {name:r.orders.name, email:r.orders.email, qty:r.qty, from, to:n}; });
@@ -445,12 +449,12 @@ async function fiftyView(){
   return `
     <div class="head"><div><h1>50:50 Club</h1><p>Numbers are given out in order of purchase. Open or close entries in Settings by setting the term name.</p></div>
       ${entries.length?`<button class="btn btn-ghost" id="exportFifty">Export CSV</button>`:''}</div>
-    <div class="notice">Entries are currently <b>${settings.fifty_term_label?`open for ${esc(settings.fifty_term_label)}`:'closed'}</b>. ${settings.fifty_term_label?'':'Set a term name in Settings to open them.'}</div>
+    <div class="notice">Entries are currently <b>${settings.fifty_term_label?`open for ${esc(settings.fifty_term_label)}`:'closed'}</b>. ${settings.fifty_term_label?'Type CLOSED in Settings to stop entries before the draw.':'Clear the term name in Settings to reopen them.'}</div>
     ${terms.length>1?`<div class="seg">${terms.map(t=>`<button class="${t===term?'on':''}" data-sub="${esc(t)}">${esc(t)}</button>`).join('')}</div>`:''}
     <div class="stats">
       <div class="stat"><div class="l">Numbers sold</div><div class="n">${n}</div></div>
-      <div class="stat"><div class="l">Pot</div><div class="n">${money(pot)}</div></div>
-      <div class="stat"><div class="l">Winners share</div><div class="n">${money(pot/2)}</div></div>
+      <div class="stat"><div class="l">Raised</div><div class="n">${money(pot)}</div></div>
+      <div class="stat"><div class="l">Prizes · 1st / 2nd / 3rd</div><div class="n" style="font-size:22px;">${money(Math.floor(pot/4))} / ${money(Math.floor(pot/8))} / ${money(Math.floor(pot/8))}</div></div>
       <div class="stat"><div class="l">To student resources</div><div class="n">${money(pot/2)}</div></div>
     </div>
     ${n?`<div class="card"><h2>Draw</h2><p class="muted" style="margin:0 0 14px;">Picks three different numbers at random. Run it with two committee members present, as the rules require.</p>
@@ -484,8 +488,8 @@ async function settingsView(){
     <div class="head"><div><h1>Settings</h1><p>Links and switches for the Ways to give page. Leave a link blank to hide that card.</p></div></div>
     <div class="card"><div class="form">
       <div class="f full"><label for="st-fifty">50:50 Club — current term</label><input type="text" id="st-fifty" value="${esc(s.fifty_term_label||'')}" placeholder="e.g. Autumn term 2026">
-        <div class="hint">Entering a term name opens 50:50 entries on the website. Clear it to close entries before the draw.</div></div>
-      <div class="f full"><label for="st-easy">easyfundraising link</label><input type="url" id="st-easy" value="${esc(s.easyfundraising_url||'')}" placeholder="https://www.easyfundraising.org.uk/causes/..."></div>
+        <div class="hint">Leave blank to use the current term automatically (e.g. Autumn term 2026). Type <b>CLOSED</b> to stop entries before the draw.</div></div>
+      <div class="f full"><label for="st-easy">easyfundraising link</label><input type="url" id="st-easy" value="${esc(s.easyfundraising_url||'')}" placeholder="https://www.easyfundraising.org.uk/causes/msptasouthwell/"><div class="hint">Leave blank to use the Minster More cause page.</div></div>
       <div class="f full"><label for="st-coop">Co-op Local Community Fund link</label><input type="url" id="st-coop" value="${esc(s.coop_url||'')}" placeholder="https://causes.coop.co.uk/..."></div>
     </div><div class="form-foot"><button class="btn btn-coral" id="saveSettings">Save settings</button></div></div>`;
 }
@@ -663,9 +667,9 @@ document.addEventListener('click', async e=>{
       if(total < 3) return toast('You need at least three numbers to draw.', true);
       const picks = new Set(); const buf = new Uint32Array(1);
       while(picks.size < 3){ crypto.getRandomValues(buf); picks.add(1 + (buf[0] % total)); }
-      const each = Math.floor(total*1000/2/3);
+      const prizes = [Math.floor(total*1000/4), Math.floor(total*1000/8), Math.floor(total*1000/8)], places = ['1st','2nd','3rd'];
       $('#drawResult').innerHTML = [...picks].map((n,i)=>{ const w = entries.find(e=>n>=e.from && n<=e.to);
-        return `<div style="margin-bottom:10px;"><span class="winner">#${n}</span> — <b>${esc(w.name||'')}</b> <a href="mailto:${esc(w.email)}?subject=${encodeURIComponent('You won the Minster More 50:50 Club — '+term)}">${esc(w.email)}</a> <span class="muted">· ${money(each)}</span></div>`; }).join('')
+        return `<div style="margin-bottom:10px;"><span class="winner">${places[i]} · #${n}</span> — <b>${esc(w.name||'')}</b> <a href="mailto:${esc(w.email)}?subject=${encodeURIComponent('You won the Minster More 50:50 Club — '+term)}">${esc(w.email)}</a> <span class="muted">· ${money(prizes[i])}</span></div>`; }).join('')
         + `<p class="muted">Drawn ${new Date().toLocaleString('en-GB')}. Note the winners down — this isn't saved.</p>`;
       return;
     }
