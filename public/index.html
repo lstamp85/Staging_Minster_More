@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minster More — Making more possible for every student.</title>
+<meta name="description" content="The fundraising community for The Minster School, Southwell. Donate, become a Future Maker, buy event tickets, and vote on where the money goes.">
+<meta property="og:title" content="Minster More">
+<meta property="og:description" content="Making more possible for every student at The Minster School, Southwell.">
+<meta name="theme-color" content="#1c2540">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23f0866b'/%3E%3Cpath d='M16 8v16M8 16h16' stroke='%231c2540' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink: oklch(0.24 0.05 258);
+    --ink-soft: oklch(0.50 0.03 258);
+    --ink-mid: oklch(0.38 0.04 258);
+    --coral: oklch(0.72 0.15 35);
+    --coral-hover: oklch(0.66 0.16 35);
+    --coral-dark: oklch(0.45 0.13 30);
+    --cyan: oklch(0.72 0.15 195);
+    --paper: oklch(0.975 0.006 258);
+    --card: #ffffff;
+    --hairline: oklch(0.24 0.05 258 / 0.1);
+    --tint: oklch(0.72 0.15 195 / 0.18);
+    --ink-lighten: oklch(0.35 0.07 258);
+    --header-bg: oklch(0.975 0.006 258 / 0.92);
+    --on-ink-soft: oklch(0.975 0.006 258 / 0.72);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--paper);color:var(--ink);font-family:'Sora',sans-serif;-webkit-font-smoothing:antialiased;}
+  h1,h2,h3,.display{font-family:'Archivo',sans-serif;}
+  a{color:inherit;}
+  button{font-family:'Sora',sans-serif;cursor:pointer;border:none;background:none;color:inherit;}
+  button:disabled{opacity:.55;cursor:not-allowed;}
+  img{max-width:100%;display:block;}
+  .wrap{max-width:1200px;margin:0 auto;padding-left:22px;padding-right:22px;}
+  .eyebrow{font-family:'Archivo',sans-serif;font-weight:700;font-size:13px;letter-spacing:0.12em;text-transform:uppercase;color:var(--coral-dark);}
+  .hairline-card{background:var(--card);border:1px solid var(--hairline);}
+  .btn{display:inline-flex;align-items:center;gap:8px;border-radius:999px;font-weight:600;font-size:14.5px;padding:12px 22px;
+    transition:background .15s,color .15s,border-color .15s;white-space:nowrap;text-decoration:none;justify-content:center;}
+  .btn-coral{background:var(--coral);color:var(--ink);}
+  .btn-coral:hover{background:var(--coral-hover);}
+  .btn-ink{background:var(--ink);color:var(--paper);}
+  .btn-ink:hover{background:var(--ink-lighten);}
+  .btn-ghost{background:transparent;border:2px solid var(--ink);color:var(--ink);}
+  .btn-ghost:hover{background:var(--ink);color:var(--paper);}
+  .btn-small{padding:8px 14px;font-size:14px;}
+  .btn-big{padding:16px 28px;font-size:16px;}
+  .link{color:var(--coral-dark);font-weight:600;}
+
+  /* HEADER */
+  header.site{position:sticky;top:0;z-index:50;background:var(--header-bg);backdrop-filter:blur(10px);border-bottom:1px solid var(--hairline);}
+  .header-row{max-width:1200px;margin:0 auto;padding:14px 22px;display:flex;align-items:center;gap:20px;}
+  .logo{display:flex;align-items:center;font-family:'Archivo',sans-serif;font-weight:800;font-size:22px;letter-spacing:-0.02em;cursor:pointer;flex:0 0 auto;text-decoration:none;}
+  .logo .plus-tile{display:inline-flex;align-items:center;justify-content:center;width:19px;height:19px;border-radius:6px;background:var(--coral);font-size:15px;line-height:1;margin:0 1px;color:var(--ink);}
+  nav.pills{display:flex;gap:2px;flex:1 1 auto;flex-wrap:wrap;}
+  nav.pills a{font-size:14px;font-weight:500;padding:8px 11px;border-radius:999px;color:var(--ink-mid);text-decoration:none;transition:background .15s;}
+  nav.pills a:hover{background:oklch(0.24 0.05 258 / 0.07);}
+  nav.pills a.active{background:var(--ink);color:var(--paper);}
+  .header-right{display:flex;align-items:center;gap:8px;flex:0 0 auto;margin-left:auto;}
+  .donate-btn{background:var(--coral);color:var(--ink);border-radius:999px;padding:10px 20px;font-weight:700;font-size:14.5px;}
+  .donate-btn:hover{background:var(--coral-hover);}
+  .basket-btn{background:var(--ink);color:var(--paper);border-radius:999px;padding:10px 14px;display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px;}
+  .basket-btn[hidden]{display:none;}
+  .basket-badge{background:var(--coral);color:var(--ink);min-width:22px;height:22px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;padding:0 5px;}
+  .burger-btn{display:none;width:40px;height:40px;border-radius:10px;flex-direction:column;align-items:center;justify-content:center;gap:5px;}
+  .burger-btn span{width:20px;height:2px;background:var(--ink);border-radius:2px;}
+  .mobile-drawer{position:fixed;inset:0;z-index:150;background:oklch(0.24 0.05 258/.5);display:none;}
+  .mobile-drawer.open{display:block;}
+  .mobile-drawer-inner{position:absolute;top:0;right:0;height:100%;width:min(320px,86vw);background:var(--paper);padding:20px;overflow-y:auto;}
+  .mobile-drawer-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;}
+  .burger-close{font-size:30px;line-height:1;width:40px;height:40px;}
+  .mobile-nav{display:flex;flex-direction:column;gap:4px;}
+  .mobile-nav a{font-size:16px;font-weight:600;padding:14px 12px;border-radius:12px;color:var(--ink-mid);text-decoration:none;}
+  .mobile-nav a.active{background:var(--ink);color:var(--paper);}
+  @media (max-width:1080px){
+    nav.pills{display:none;}
+    .burger-btn{display:flex;}
+  }
+  @media (max-width:760px){
+    .header-row{padding:10px 16px;gap:10px;}
+    .logo{font-size:19px;}
+    .donate-btn{padding:9px 16px;font-size:14px;}
+    .basket-btn{padding:9px 11px;}
+    .basket-btn .lbl{display:none;}
+  }
+
+  /* HERO */
+  .hero{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:48px;padding:64px 22px 20px;max-width:1200px;margin:0 auto;align-items:center;}
+  .hero h1{font-weight:800;font-size:clamp(40px,6vw,72px);line-height:0.96;letter-spacing:-0.035em;margin:14px 0 18px;}
+  .hero .lede{font-size:18px;line-height:1.55;color:var(--ink-soft);max-width:44ch;margin:0 0 28px;}
+  .hero-ctas{display:flex;gap:12px;flex-wrap:wrap;}
+  .target-card{background:var(--ink);color:var(--paper);border-radius:28px;padding:34px;}
+  .target-label{color:var(--cyan);text-transform:uppercase;font-family:'Archivo',sans-serif;font-weight:700;font-size:13px;letter-spacing:0.1em;}
+  .target-figure{font-family:'Archivo',sans-serif;font-weight:800;font-size:68px;margin:10px 0 0;line-height:1;letter-spacing:-0.02em;}
+  .target-of{font-size:16px;color:var(--on-ink-soft);margin:4px 0 18px;}
+  .track{height:14px;border-radius:999px;background:oklch(0.975 0.006 258 / 0.14);overflow:hidden;}
+  .track-fill{height:100%;background:var(--coral);border-radius:999px;transition:width .6s ease;min-width:0;}
+  .target-pct{font-size:14px;color:var(--on-ink-soft);margin:12px 0 22px;}
+  .target-actions{display:grid;gap:10px;}
+  .target-card .btn-paper{background:var(--paper);color:var(--ink);}
+  .target-card .btn-paper:hover{background:var(--cyan);}
+  .target-card .btn-line{border:2px solid oklch(0.975 0.006 258 / .3);color:var(--paper);}
+  .target-card .btn-line:hover{border-color:var(--paper);}
+
+  /* SECTIONS */
+  section{padding:56px 0;}
+  .band{background:var(--card);border-top:1px solid var(--hairline);border-bottom:1px solid var(--hairline);}
+  .section-head{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;flex-wrap:wrap;margin-bottom:24px;}
+  .section-head h2{font-size:30px;font-weight:800;margin:0;letter-spacing:-0.01em;}
+  .grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;}
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px;}
+  .pvm-card{border-radius:22px;padding:28px;}
+  .pvm-card .eyebrow{display:block;margin-bottom:10px;}
+  .pvm-card p{font-size:17px;line-height:1.5;margin:0;}
+  .pvm-card.dark{background:var(--ink);color:var(--paper);border:none;}
+  .pvm-card.dark .eyebrow{color:var(--cyan);}
+  .idea-card,.event-card,.news-card{border-radius:20px;padding:24px;display:flex;flex-direction:column;}
+  .chip{display:inline-block;border-radius:999px;padding:4px 10px;font-size:12.5px;font-weight:600;}
+  .chip-cyan{background:var(--tint);color:var(--coral-dark);}
+  .chip-ink{background:oklch(0.24 0.05 258 / 0.07);color:var(--ink-mid);}
+  .chip-coral{background:var(--coral);color:var(--ink);}
+  .idea-title,.event-title{font-family:'Archivo',sans-serif;font-size:21px;font-weight:700;margin:12px 0 8px;}
+  .idea-blurb,.event-blurb,.news-body{font-size:14.5px;line-height:1.5;color:var(--ink-mid);margin:0 0 18px;flex:1;}
+  .vote-row{display:flex;align-items:center;gap:12px;}
+  .vote-btn{border:2px solid var(--ink);border-radius:999px;padding:8px 16px;font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px;transition:background .15s;}
+  .vote-btn:hover,.vote-btn.voted{background:var(--coral);}
+  .vote-count{font-weight:700;font-size:13px;color:var(--ink-mid);}
+  .event-date{color:var(--coral-dark);text-transform:uppercase;font-weight:700;font-size:12.5px;letter-spacing:.06em;}
+  .event-meta{font-size:13.5px;color:var(--ink-soft);margin:-2px 0 10px;}
+  .dashed{border-top:1px dashed var(--hairline);padding-top:14px;margin-top:auto;display:flex;justify-content:space-between;align-items:center;gap:10px;}
+  .price{font-family:'Archivo',sans-serif;font-weight:800;font-size:19px;}
+  .news-date{color:var(--coral-dark);text-transform:uppercase;font-weight:700;font-size:12px;letter-spacing:.06em;display:block;margin-bottom:8px;}
+  .news-title{font-family:'Archivo',sans-serif;font-size:19px;font-weight:700;margin:0 0 8px;}
+  .strip{border-radius:28px;padding:44px;display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;}
+  .strip h2{font-size:30px;font-weight:800;margin:0;letter-spacing:-0.01em;}
+  .strip p{margin:8px 0 0;font-size:16px;}
+  .strip-tint{background:var(--tint);}
+  .strip-coral{background:var(--coral);}
+  .strip-ink{background:var(--ink);color:var(--paper);}
+  .strip-ink p{color:var(--on-ink-soft);}
+  .empty{border:2px dashed var(--hairline);border-radius:20px;padding:30px;text-align:center;color:var(--ink-soft);font-size:15px;}
+  .empty b{display:block;color:var(--ink);font-size:17px;margin-bottom:4px;font-family:'Archivo',sans-serif;}
+
+  /* PAGE HEAD */
+  .page-head{padding:48px 0 12px;}
+  .page-head h1{font-size:clamp(34px,5vw,58px);font-weight:800;margin:14px 0 16px;letter-spacing:-0.025em;line-height:1.02;}
+  .page-head .intro{font-size:18px;color:var(--ink-soft);max-width:58ch;line-height:1.55;margin:0;}
+
+  /* MONEY */
+  .summary-panel{background:var(--ink);color:var(--paper);border-radius:28px;padding:36px;margin:28px 0 36px;}
+  .summary-figs{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:20px;margin-bottom:22px;}
+  .fig-label{color:var(--on-ink-soft);font-size:13px;text-transform:uppercase;letter-spacing:.08em;font-weight:700;}
+  .fig-num{font-family:'Archivo',sans-serif;font-weight:800;font-size:52px;line-height:1;margin-top:6px;}
+  .pot-row{border-radius:20px;padding:26px;display:grid;grid-template-columns:minmax(0,1.4fr) minmax(220px,1fr);gap:24px;margin-bottom:14px;align-items:center;}
+  .pot-title{font-family:'Archivo',sans-serif;font-size:21px;font-weight:700;margin:10px 0 6px;}
+  .pot-blurb{font-size:14.5px;color:var(--ink-mid);margin:0;line-height:1.5;}
+  .pot-raised{font-family:'Archivo',sans-serif;font-weight:800;font-size:26px;}
+  .pot-of{font-size:13px;color:var(--ink-soft);margin-bottom:8px;}
+  .track-cyan{height:10px;border-radius:999px;background:oklch(0.24 0.05 258/.08);overflow:hidden;margin-bottom:6px;}
+  .track-cyan-fill{height:100%;background:var(--cyan);border-radius:999px;}
+  .pot-status{font-size:13px;font-weight:600;color:var(--coral-dark);}
+  .bordered-card{border:2px solid var(--ink);border-radius:20px;padding:24px;}
+  .bordered-card h3{margin:0 0 10px;font-size:18px;}
+  .bordered-card p{margin:0;font-size:14.5px;color:var(--ink-mid);line-height:1.5;}
+  .note{font-size:13.5px;color:var(--ink-soft);line-height:1.55;}
+
+  /* SUGGEST */
+  .step-card{border-radius:20px;padding:24px;}
+  .step-num{font-family:'Archivo',sans-serif;font-weight:800;font-size:24px;color:var(--coral-dark);margin-bottom:8px;}
+  .two-col{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,420px);gap:32px;align-items:start;}
+  @media (max-width:860px){.two-col{grid-template-columns:1fr;}}
+  .suggest-row{display:flex;gap:18px;align-items:flex-start;border-radius:20px;padding:22px;margin-bottom:14px;}
+  .big-vote{width:64px;flex:0 0 64px;border-radius:16px;border:2px solid var(--ink);padding:10px 0;display:flex;flex-direction:column;align-items:center;gap:2px;transition:background .15s;}
+  .big-vote .num{font-family:'Archivo',sans-serif;font-weight:800;font-size:19px;}
+  .big-vote:hover,.big-vote.voted{background:var(--coral);}
+  .suggest-title{font-family:'Archivo',sans-serif;font-size:20px;font-weight:700;margin:10px 0 6px;}
+  .form-panel{background:var(--ink);color:var(--paper);border-radius:24px;padding:30px;position:sticky;top:90px;}
+  .form-panel h3{margin:0 0 18px;font-size:20px;}
+  .form-panel .note{color:var(--on-ink-soft);}
+  .field{margin-bottom:16px;}
+  .field label{display:block;font-size:13.5px;margin-bottom:6px;font-weight:500;}
+  .form-panel .field label{color:oklch(0.975 0.006 258/.85);}
+  .field input,.field textarea,.field select{width:100%;background:var(--paper);border:1px solid var(--hairline);border-radius:12px;padding:12px 14px;font-size:16px;font-family:'Sora',sans-serif;color:var(--ink);}
+  .field input:focus,.field textarea:focus,.field select:focus{outline:3px solid var(--cyan);outline-offset:1px;}
+  .field-cost{display:flex;align-items:center;background:var(--paper);border-radius:12px;padding:0 14px;border:1px solid var(--hairline);}
+  .field-cost span{color:var(--ink-soft);margin-right:4px;}
+  .field-cost input{padding:12px 0;border:none;border-radius:0;}
+  .field-cost input:focus{outline:none;}
+  .field-note{font-size:12.5px;color:oklch(0.975 0.006 258/.65);margin-top:6px;}
+  .check{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.45;cursor:pointer;}
+  .check input{width:20px;height:20px;flex:0 0 20px;margin:1px 0 0;accent-color:var(--coral-dark);}
+
+  /* DONATE */
+  .donate-panel{background:var(--ink);color:var(--paper);border-radius:28px;padding:36px;display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,440px);gap:36px;align-items:start;}
+  .donate-panel h2{font-size:clamp(30px,4vw,44px);font-weight:800;margin:8px 0 10px;letter-spacing:-0.02em;line-height:1.02;}
+  .donate-panel .eyebrow{color:var(--cyan);}
+  .donate-panel p{color:var(--on-ink-soft);font-size:16px;line-height:1.55;margin:0 0 12px;}
+  .donate-progress{margin-top:32px;padding-top:28px;border-top:1px solid oklch(0.975 0.006 258 / .14);max-width:420px;}
+  .donate-progress .target-of{color:var(--on-ink-soft);}
+  .donate-box{background:var(--paper);color:var(--ink);border-radius:22px;padding:24px;}
+  .amounts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;}
+  .amount{border:2px solid var(--ink);border-radius:14px;padding:12px 0;font-family:'Archivo',sans-serif;font-weight:800;font-size:19px;transition:background .12s;}
+  .amount:hover{background:var(--tint);}
+  .amount.on{background:var(--ink);color:var(--paper);}
+  .other-amount{display:flex;align-items:center;border:2px solid var(--ink);border-radius:14px;padding:0 14px;margin-bottom:14px;background:#fff;}
+  .other-amount span{font-family:'Archivo',sans-serif;font-weight:800;font-size:19px;}
+  .other-amount input{border:none;padding:12px 6px;font-size:17px;width:100%;font-family:'Sora',sans-serif;background:transparent;color:var(--ink);}
+  .other-amount input:focus{outline:none;}
+  .other-amount:focus-within{outline:3px solid var(--cyan);}
+  .giftaid{background:var(--tint);border-radius:14px;padding:14px;margin-bottom:14px;}
+  .giftaid-boost{font-weight:700;color:var(--coral-dark);}
+  .ga-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;}
+  .ga-fields .full{grid-column:1/-1;}
+  .ga-fields input{width:100%;border:1px solid var(--hairline);border-radius:10px;padding:10px 12px;font-size:16px;font-family:'Sora',sans-serif;background:#fff;color:var(--ink);}
+  .ga-legal{font-size:11.5px;color:var(--ink-soft);line-height:1.45;margin-top:10px;}
+  .donate-go{width:100%;font-size:17px;padding:16px;}
+  .secure{font-size:12.5px;color:var(--ink-soft);text-align:center;margin-top:10px;}
+
+  /* GIVE */
+  .fm-card{background:var(--coral);border-radius:24px;padding:34px;}
+  .fm-card .eyebrow{color:var(--ink);opacity:.75;}
+  .fm-card h2{font-size:34px;font-weight:800;margin:8px 0 8px;letter-spacing:-0.02em;}
+  .fm-strap{font-size:16px;margin:0 0 6px;max-width:44ch;line-height:1.5;}
+  .fm-price{font-family:'Archivo',sans-serif;font-weight:800;font-size:48px;margin:12px 0 2px;}
+  .fm-year{font-size:14px;margin:0 0 18px;}
+  .fm-benefits{list-style:none;padding:0;margin:0 0 24px;display:grid;gap:8px;}
+  .fm-benefits li{font-size:14.5px;padding-left:24px;position:relative;}
+  .fm-benefits li:before{content:"✓";position:absolute;left:0;font-weight:800;}
+  .white-card{background:var(--card);border-radius:24px;padding:34px;border:1px solid var(--hairline);}
+  .white-card h3{margin-top:0;font-size:22px;}
+  .stepper{display:flex;align-items:center;gap:16px;margin:18px 0;}
+  .stepper button{width:42px;height:42px;border-radius:999px;border:2px solid var(--ink);font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+  .stepper .count{font-family:'Archivo',sans-serif;font-weight:800;font-size:26px;min-width:28px;text-align:center;}
+  .small-card{border-radius:20px;padding:24px;}
+  .small-card h3{font-size:18px;margin:0 0 8px;}
+  .small-card p{font-size:14px;color:var(--ink-mid);line-height:1.5;margin:0 0 14px;}
+  .sponsor-panel{background:var(--tint);border-radius:24px;padding:34px;}
+  .sponsor-panel h2{margin:0 0 8px;font-size:28px;}
+  .tier-card{background:var(--card);border-radius:18px;padding:22px;text-align:center;}
+  .tier-price{font-family:'Archivo',sans-serif;font-weight:800;font-size:28px;margin:6px 0;}
+  .disclosure summary{cursor:pointer;font-size:13.5px;font-weight:600;color:var(--coral-dark);margin-top:12px;}
+  .disclosure ol{font-size:13.5px;color:var(--ink-mid);line-height:1.6;padding-left:18px;margin-top:10px;}
+
+  /* WALL */
+  .wall-names{display:flex;flex-wrap:wrap;gap:10px;}
+  .wall-name{background:var(--card);border:1px solid var(--hairline);border-radius:999px;padding:9px 16px;font-size:14px;font-weight:600;color:var(--ink-mid);}
+
+  /* ABOUT */
+  .committee-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:18px;}
+  .committee-card{border-radius:18px;padding:22px;text-align:center;}
+  .portrait{width:96px;height:96px;border-radius:50%;margin:0 auto 14px;background:var(--tint);display:flex;align-items:center;justify-content:center;
+    font-family:'Archivo',sans-serif;font-weight:800;font-size:28px;color:var(--coral-dark);overflow:hidden;}
+  .portrait img{width:100%;height:100%;object-fit:cover;}
+  .committee-role{font-size:13.5px;color:var(--ink-soft);margin-top:2px;}
+  .doc-group{margin-bottom:22px;}
+  .doc-group h3{font-size:15px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);margin:0 0 10px;}
+  .doc-row{display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--card);border:1px solid var(--hairline);border-radius:14px;padding:12px 16px;margin-bottom:8px;text-decoration:none;}
+  .doc-row:hover{border-color:var(--ink);}
+  .doc-row .t{font-size:15px;font-weight:600;}
+  .doc-row .d{font-size:12.5px;color:var(--ink-soft);}
+  .pdf-tag{font-size:12px;font-weight:700;background:var(--ink);color:var(--paper);padding:5px 10px;border-radius:999px;white-space:nowrap;}
+  .contact-list{display:grid;gap:10px;}
+  .contact-list a{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;background:var(--card);border:1px solid var(--hairline);border-radius:14px;padding:14px 16px;text-decoration:none;}
+  .contact-list a:hover{border-color:var(--ink);}
+  .contact-list .what{font-weight:600;}
+  .contact-list .addr{color:var(--coral-dark);font-weight:600;font-size:14.5px;word-break:break-all;}
+
+  /* PROSE */
+  .prose{max-width:70ch;font-size:16px;line-height:1.65;color:var(--ink-mid);}
+  .prose h2{color:var(--ink);font-size:22px;margin:32px 0 8px;}
+  .prose a{color:var(--coral-dark);font-weight:600;}
+
+  /* FOOTER */
+  footer{background:var(--ink);color:var(--paper);padding:52px 0 40px;margin-top:56px;}
+  footer .foot-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:28px;}
+  footer h4{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--cyan);margin:0 0 12px;font-family:'Archivo',sans-serif;}
+  footer a{display:block;font-size:14px;color:oklch(0.975 0.006 258/.82);margin-bottom:9px;text-decoration:none;}
+  footer a:hover{color:var(--paper);text-decoration:underline;}
+  footer .charity-line{font-size:12.5px;color:oklch(0.975 0.006 258/.6);margin-top:36px;line-height:1.6;}
+  footer .foot-donate{margin-top:6px;display:inline-flex;}
+
+  /* MODALS */
+  .overlay{position:fixed;inset:0;background:oklch(0.24 0.05 258/.55);z-index:100;display:flex;justify-content:flex-end;}
+  .overlay.center{justify-content:center;align-items:center;padding:16px;}
+  .sheet{background:var(--paper);width:min(440px,100%);height:100%;padding:28px;overflow-y:auto;}
+  .dialog{background:var(--paper);width:min(480px,100%);max-height:calc(100vh - 32px);border-radius:24px;padding:28px;overflow-y:auto;}
+  .sheet h2,.dialog h2{margin:0 0 16px;font-size:26px;}
+  .modal-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+  .close-btn{font-size:28px;line-height:1;width:36px;height:36px;flex:0 0 36px;}
+  .basket-line{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--hairline);}
+  .basket-line .meta{font-size:12.5px;color:var(--ink-soft);}
+  .remove-btn{font-size:12.5px;color:var(--coral-dark);font-weight:600;}
+  .basket-total{display:flex;justify-content:space-between;font-family:'Archivo',sans-serif;font-weight:800;font-size:20px;margin:20px 0;}
+  .basket-extra{margin:16px 0;display:grid;gap:12px;}
+  .basket-extra .field input{background:#fff;}
+
+  /* TOAST */
+  .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:14px 22px;border-radius:999px;font-size:14px;font-weight:500;z-index:200;box-shadow:0 14px 34px -14px oklch(0.24 0.05 258 / 0.6);max-width:calc(100% - 32px);text-align:center;}
+  .loading{padding:120px 0;text-align:center;color:var(--ink-soft);}
+
+  @media (max-width:760px){
+    .wrap{padding-left:16px;padding-right:16px;}
+    section{padding:40px 0;}
+    .hero{padding:32px 16px 8px;gap:28px;}
+    .hero-ctas{flex-direction:column;align-items:stretch;}
+    .target-card,.summary-panel,.fm-card,.white-card,.sponsor-panel,.donate-panel{padding:24px;border-radius:22px;}
+    .target-figure{font-size:52px;}
+    .fig-num{font-size:40px;}
+    .page-head{padding:32px 0 4px;}
+    .section-head h2,.strip h2{font-size:24px;}
+    .strip{padding:28px;flex-direction:column;align-items:stretch;}
+    .pot-row{grid-template-columns:1fr;padding:20px;gap:14px;}
+    .form-panel{position:static;padding:24px;}
+    .suggest-row{padding:16px;gap:12px;}
+    .big-vote{width:52px;flex-basis:52px;padding:8px 0;}
+    .donate-panel{grid-template-columns:1fr;gap:22px;}
+    .donate-box{padding:18px;}
+    .sheet{padding:20px;}
+    .btn{white-space:normal;text-align:center;}
+    .fm-card .btn,.small-card .btn,.white-card .btn{width:100%;}
+  }
+  @media (max-width:400px){
+    .hero h1{font-size:36px;}
+    .logo{font-size:17px;}
+    .donate-btn{padding:9px 13px;}
+  }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="header-row">
+    <a class="logo" href="#/">Minster M<span class="plus-tile">+</span>re</a>
+    <nav class="pills" id="navPills" aria-label="Main"></nav>
+    <div class="header-right">
+      <button class="donate-btn" data-donate>Donate</button>
+      <button class="basket-btn" id="basketBtn" aria-label="Basket" hidden><span class="lbl">Basket</span> <span class="basket-badge" id="basketCount">0</span></button>
+      <button class="burger-btn" id="burgerBtn" aria-label="Open menu" aria-expanded="false"><span></span><span></span><span></span></button>
+    </div>
+  </div>
+</header>
+
+<div class="mobile-drawer" id="mobileDrawer">
+  <div class="mobile-drawer-inner">
+    <div class="mobile-drawer-head">
+      <a class="logo" href="#/">Minster M<span class="plus-tile">+</span>re</a>
+      <button class="burger-close" id="burgerClose" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="mobile-nav" id="mobileNav" aria-label="Main"></nav>
+    <button class="btn btn-coral btn-big" data-donate style="width:100%;margin-top:18px;">Make a donation</button>
+  </div>
+</div>
+
+<main id="app"><div class="loading">Loading…</div></main>
+
+<footer>
+  <div class="wrap foot-grid">
+    <div>
+      <a class="logo" href="#/" style="color:var(--paper);font-size:22px;margin-bottom:12px;">Minster M<span class="plus-tile">+</span>re</a>
+      <p style="font-size:14px;color:oklch(0.975 0.006 258/.8);max-width:30ch;line-height:1.5;margin:0 0 14px;">The fundraising community for The Minster School, Southwell.</p>
+      <button class="btn btn-coral btn-small foot-donate" data-donate>Make a donation</button>
+    </div>
+    <div>
+      <h4>Get involved</h4>
+      <a href="#/give">Ways to give</a>
+      <a href="#/suggest">Suggest &amp; vote</a>
+      <a href="#/events">Events &amp; tickets</a>
+      <a href="#/wall">Supporters wall</a>
+    </div>
+    <div>
+      <h4>About</h4>
+      <a href="#/money">Where the money goes</a>
+      <a href="#/about">Committee &amp; documents</a>
+      <a href="./assets/Minster-More-brand-and-mission.pdf" target="_blank" rel="noopener">Brand &amp; mission</a>
+      <a href="#/privacy">Privacy</a>
+    </div>
+    <div>
+      <h4>Contact</h4>
+      <a href="mailto:hello@minstermore.org.uk">hello@minstermore.org.uk</a>
+      <a href="mailto:events@minstermore.org.uk">events@minstermore.org.uk</a>
+      <a href="mailto:finance@minstermore.org.uk">finance@minstermore.org.uk</a>
+    </div>
+  </div>
+  <div class="wrap charity-line">
+    Minster More is the working name of Southwell Minster School Parent Teacher Association, a registered charity in England and Wales, number 516332.
+    · <a href="/admin" style="display:inline;color:inherit;">Committee login</a>
+  </div>
+</footer>
+
+<div id="modalRoot"></div>
+<div id="toastRoot" aria-live="polite"></div>
+
+<script>
+/* =====================================================================
+   Minster More — public site
+   All content comes from /api/site (managed in /admin).
+   ===================================================================== */
+
+const NAV = [
+  {key:'give',    label:'Ways to give'},
+  {key:'money',   label:'Where the money goes'},
+  {key:'suggest', label:'Suggest & vote'},
+  {key:'events',  label:'Events'},
+  {key:'wall',    label:'Supporters'},
+  {key:'about',   label:'About'},
+];
+const PAGES = ['home','give','money','suggest','events','wall','about','privacy','thanks'];
+const EMAIL = {
+  hello:'hello@minstermore.org.uk', events:'events@minstermore.org.uk',
+  finance:'finance@minstermore.org.uk', team:'team@minstermore.org.uk',
+};
+const POT_STATUSES = ['Proposed','Open for voting','Fundraising','Funded','Delivered'];
+const AMOUNTS = [500, 1000, 2500, 5000, 10000, 25000];
+
+/* ---------------- STATE ---------------- */
+let data = null;
+let page = 'home';
+let basket = load('mm_basket', []);
+let voted = new Set(load('mm_voted', []));
+let voter = load('mm_voter', null);
+if(!voter){ voter = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now()); save('mm_voter', voter); }
+let fiftyQty = 1;
+let suggestForm = {title:'', blurb:'', cost:'', who:'Parent / carer'};
+let suggestSent = false;
+let volunteerSent = false;
+let donation = {amount:2500, other:'', giftAid:false, ga:{full_name:'', house:'', postcode:''}};
+let basketForm = {giftAid:false, ga:{full_name:'', house:'', postcode:''}, wall_name:'', over18:false};
+let modal = null; // {type:'donate'|'basket'|'reserve', ...}
+let busy = false;
+
+/* ---------------- HELPERS ---------------- */
+function load(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } }
+function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function money(p){
+  const n = (p || 0) / 100;
+  return '£' + n.toLocaleString('en-GB', {minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2});
+}
+function pct(r,t){ return t > 0 ? Math.min(100, Math.round((r/t)*100)) : 0; }
+function initials(name){ return esc(String(name).split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase()); }
+function fmtDate(iso, opts){ return new Date(iso).toLocaleDateString('en-GB', Object.assign({timeZone:'Europe/London'}, opts)); }
+function fmtTime(iso){ return new Date(iso).toLocaleTimeString('en-GB', {hour:'numeric', minute:'2-digit', hour12:true, timeZone:'Europe/London'}).replace(':00','').replace(' ',''); }
+function toast(msg){
+  const root = document.getElementById('toastRoot');
+  root.innerHTML = `<div class="toast">${esc(msg)}</div>`;
+  clearTimeout(window._t); window._t = setTimeout(()=> root.innerHTML = '', 3200);
+}
+async function post(url, body){
+  const res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+  const json = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(json.error || 'Something went wrong — please try again.');
+  return json;
+}
+function emptyState(title, body){ return `<div class="empty"><b>${title}</b>${body}</div>`; }
+function saveBasket(){ save('mm_basket', basket); updateBasketBtn(); }
+function basketTotal(){ return basket.reduce((s,b)=> s + b.unit_pence*b.qty, 0); }
+function basketCount(){ return basket.reduce((s,b)=> s + b.qty, 0); }
+function donationAmount(){ return donation.other ? Math.round(parseFloat(donation.other) * 100) || 0 : donation.amount; }
+
+/* ---------------- ROUTING ---------------- */
+function route(){
+  const key = (location.hash.replace(/^#\/?/, '').split('?')[0]) || 'home';
+  if(modal) closeModal();
+  if(key === 'basket'){ page = page || 'home'; openModal({type:'basket'}); history.replaceState(null,'','#/'+(page==='home'?'':page)); return; }
+  page = PAGES.includes(key) ? key : 'home';
+  if(page === 'thanks'){ basket = []; saveBasket(); }
+  closeDrawer();
+  render();
+  window.scrollTo(0,0);
+}
+window.addEventListener('hashchange', route);
+
+/* ---------------- COMPONENTS ---------------- */
+function navHTML(){
+  return NAV.map(n=>`<a href="#/${n.key}" class="${page===n.key?'active':''}">${n.label}</a>`).join('');
+}
+
+function targetCard(){
+  const s = data.settings, raised = data.raised_pence, p = pct(raised, s.target_pence);
+  return `
+    <div class="target-card">
+      <div class="target-label">${esc(s.year_label)} fundraising target</div>
+      <div class="target-figure">${money(raised)}</div>
+      <div class="target-of">raised of ${money(s.target_pence)}</div>
+      <div class="track"><div class="track-fill" style="width:${p}%"></div></div>
+      <div class="target-pct">${p}% of the way there.</div>
+      <div class="target-actions">
+        <button class="btn btn-coral btn-big" data-donate>Donate now</button>
+        <a class="btn btn-line" href="#/money">See where every pound goes</a>
+      </div>
+    </div>`;
+}
+
+function pvmCards(darkFirst){
+  return `
+    <div class="grid3">
+      <div class="hairline-card pvm-card ${darkFirst?'dark':''}"><span class="eyebrow">Purpose</span><p>We exist to fund the resources, experiences and opportunities that help Minster students get more from school.</p></div>
+      <div class="hairline-card pvm-card"><span class="eyebrow">Vision</span><p>A Minster where the whole community helps create more opportunities for every student.</p></div>
+      <div class="hairline-card pvm-card"><span class="eyebrow">Mission</span><p>Raise ${money(data.settings.target_pence)} each year through Future Makers, events and local partnerships — and show openly what is raised, funded and delivered.</p></div>
+    </div>`;
+}
+
+function ideaCard(idea){
+  const v = voted.has(idea.id);
+  return `
+    <div class="hairline-card idea-card">
+      <div><span class="chip chip-cyan">${esc(idea.who)}</span></div>
+      <div class="idea-title">${esc(idea.title)}</div>
+      <p class="idea-blurb">${esc(idea.blurb || '')}</p>
+      <div class="vote-row">
+        <button class="vote-btn ${v?'voted':''}" data-vote="${idea.id}">▲ ${v?'Voted':'Vote for this'}</button>
+        <span class="vote-count">${idea.votes} ${idea.votes===1?'vote':'votes'}</span>
+      </div>
+    </div>`;
+}
+
+function eventCard(ev){
+  const soldOut = ev.remaining === 0;
+  const free = ev.price_pence === 0;
+  let action;
+  if(soldOut) action = `<span class="chip chip-ink">Sold out</span>`;
+  else if(free) action = `<button class="btn btn-ink btn-small" data-reserve="${ev.id}">Reserve a place</button>`;
+  else if(data.payments) action = `<button class="btn btn-ink btn-small" data-ticket="${ev.id}">Buy tickets</button>`;
+  else action = `<a class="btn btn-ghost btn-small" href="mailto:${EMAIL.events}?subject=${encodeURIComponent('Tickets: '+ev.title)}">Ask about tickets</a>`;
+  return `
+    <div class="hairline-card event-card">
+      <div><span class="event-date">${fmtDate(ev.starts_at,{weekday:'short',day:'numeric',month:'short'})}</span>
+      <span class="chip chip-cyan" style="margin-left:8px;">${fmtTime(ev.starts_at)}</span></div>
+      <div class="event-title">${esc(ev.title)}</div>
+      ${ev.location?`<div class="event-meta">${esc(ev.location)}</div>`:''}
+      <p class="event-blurb">${esc(ev.blurb || '')}</p>
+      <div class="dashed">
+        <span><span class="price">${free?'Free':money(ev.price_pence)}</span>
+        ${ev.remaining!=null && !soldOut && ev.remaining<=20?`<span class="note" style="display:block;">${ev.remaining} left</span>`:''}</span>
+        ${action}
+      </div>
+    </div>`;
+}
+
+function giftAidBlock(state, amountPence, prefix){
+  const boost = Math.round(amountPence * 0.25);
+  return `
+    <div class="giftaid">
+      <label class="check">
+        <input type="checkbox" data-ga-toggle="${prefix}" ${state.giftAid?'checked':''}>
+        <span><b>Add Gift Aid</b> — <span class="giftaid-boost" data-ga-boost="${prefix}">${amountPence>0?`+${money(boost)}`:'+25%'}</span> at no cost to you, if you're a UK taxpayer.</span>
+      </label>
+      ${state.giftAid ? `
+        <div class="ga-fields">
+          <input class="full" placeholder="Full name" autocomplete="name" data-ga="${prefix}.full_name" value="${esc(state.ga.full_name)}">
+          <input placeholder="House name or number" autocomplete="address-line1" data-ga="${prefix}.house" value="${esc(state.ga.house)}">
+          <input placeholder="Postcode" autocomplete="postal-code" data-ga="${prefix}.postcode" value="${esc(state.ga.postcode)}">
+        </div>
+        <div class="ga-legal">I want to Gift Aid my donation and any donations I make in the future or have made in the past 4 years to Southwell Minster School Parent Teacher Association (Minster More). I am a UK taxpayer and understand that if I pay less Income Tax and/or Capital Gains Tax than the amount of Gift Aid claimed on all my donations in that tax year it is my responsibility to pay any difference.</div>
+      ` : ''}
+    </div>`;
+}
+
+function donateBox(){
+  const amt = donationAmount();
+  if(!data.payments){
+    return `<div class="donate-box">
+      <h3 style="margin:0 0 8px;">Online donations open soon</h3>
+      <p class="note" style="color:var(--ink-mid);margin:0 0 14px;">In the meantime, email us and we'll send you our bank details.</p>
+      <a class="btn btn-coral donate-go" href="mailto:${EMAIL.finance}?subject=Donation">Email ${EMAIL.finance}</a>
+    </div>`;
+  }
+  return `
+    <div class="donate-box">
+      <div class="amounts">
+        ${AMOUNTS.map(a=>`<button class="amount ${!donation.other && donation.amount===a?'on':''}" data-amount="${a}">${money(a)}</button>`).join('')}
+      </div>
+      <label class="other-amount"><span>£</span><input id="otherAmount" type="number" inputmode="decimal" min="1" step="1" placeholder="Other amount" value="${esc(donation.other)}" aria-label="Other amount"></label>
+      ${giftAidBlock(donation, amt, 'donation')}
+      <button class="btn btn-coral donate-go" id="donateGo" ${busy?'disabled':''}>${busy?'Taking you to checkout…':`Donate <span data-donate-label>${amt>0?money(amt):''}</span>`}</button>
+      <div class="secure">Secure payment by Stripe · card, Apple Pay, Google Pay</div>
+    </div>`;
+}
+
+function donatePanel(){
+  return `
+    <div class="donate-panel">
+      <div>
+        <div class="eyebrow">One-off donation</div>
+        <h2>Every pound goes to what Minster students need.</h2>
+        <p>Give once, any amount. UK taxpayers can add 25% with Gift Aid.</p>
+        <div class="donate-progress">
+          <div class="fig-label">${esc(data.settings.year_label)} so far</div>
+          <div class="fig-num">${money(data.raised_pence)}</div>
+          <div class="target-of" style="margin:4px 0 14px;">raised of ${money(data.settings.target_pence)}</div>
+          <div class="track"><div class="track-fill" style="width:${pct(data.raised_pence, data.settings.target_pence)}%"></div></div>
+        </div>
+        <p style="margin-top:24px;">Prefer to give monthly? <a href="#/give" data-scroll="fm" class="link" style="color:var(--coral);">Become a Future Maker for £10 a month.</a></p>
+      </div>
+      ${donateBox()}
+    </div>`;
+}
+
+/* ---------------- PAGES ---------------- */
+function pageHome(){
+  const ideas = data.ideas.slice(0,3), events = data.events.slice(0,3);
+  return `
+    <div class="hero">
+      <div>
+        <div class="eyebrow">The fundraising community for The Minster School</div>
+        <h1>Making more possible for every student.</h1>
+        <p class="lede">You suggest it. Everyone votes. We fund it — and show exactly where every pound goes.</p>
+        <div class="hero-ctas">
+          <button class="btn btn-coral btn-big" data-donate>Make a donation</button>
+          <a class="btn btn-ghost btn-big" href="#/suggest">Suggest an idea</a>
+        </div>
+      </div>
+      <div>${targetCard()}</div>
+    </div>
+
+    <section class="wrap">${pvmCards(true)}</section>
+
+    <section class="band">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Most-backed ideas</h2>
+          <a class="btn btn-ghost btn-small" href="#/suggest">${ideas.length?'See all and vote':'Suggest an idea'}</a>
+        </div>
+        ${ideas.length ? `<div class="grid3">${ideas.map(ideaCard).join('')}</div>`
+          : emptyState('No ideas up for vote yet', 'Be the first — students, families and staff can all suggest what Minster needs.')}
+      </div>
+    </section>
+
+    ${events.length ? `
+    <section class="wrap">
+      <div class="section-head"><h2>What's on</h2><a class="btn btn-ghost btn-small" href="#/events">All events</a></div>
+      <div class="grid3">${events.map(eventCard).join('')}</div>
+    </section>` : ''}
+
+    <section class="wrap">
+      <div class="strip strip-coral">
+        <div><h2>£10 a month. Twelve months of more.</h2><p>Future Makers give the steady funding that lets us say yes to bigger ideas.</p></div>
+        <a class="btn btn-ink btn-big" href="#/give" data-scroll="fm">Become a Future Maker</a>
+      </div>
+    </section>
+
+    ${data.news.length ? `
+    <section class="wrap">
+      <div class="section-head"><h2>Latest</h2></div>
+      <div class="grid3">
+        ${data.news.slice(0,3).map(n=>`
+          <div class="hairline-card news-card">
+            <span class="news-date">${fmtDate(n.published_on,{day:'numeric',month:'short',year:'numeric'})}</span>
+            <div class="news-title">${esc(n.title)}</div>
+            <p class="news-body">${esc(n.body || '')}</p>
+          </div>`).join('')}
+      </div>
+    </section>` : ''}
+
+    <section class="wrap">
+      <div class="strip strip-tint">
+        <div><h2>Two hours a term is plenty.</h2><p>Help at an event, join the committee, or work behind the scenes.</p></div>
+        <a class="btn btn-ink" href="#/about" data-scroll="volunteer">Volunteer with us</a>
+      </div>
+    </section>`;
+}
+
+function pageGive(){
+  const s = data.settings;
+  const fiftyOpen = Boolean(s.fifty_term_label);
+  const links = [
+    s.easyfundraising_url && {t:'easyfundraising', b:'Shop online as normal and retailers donate a percentage — at no cost to you.', u:s.easyfundraising_url, l:'Get started'},
+    s.coop_url && {t:'Co-op Local Community Fund', b:'Co-op members can choose Minster More as their local cause.', u:s.coop_url, l:'Choose us'},
+  ].filter(Boolean);
+  return `
+    <div class="wrap page-head">
+      <div class="eyebrow">Ways to give</div>
+      <h1>Give however suits you.</h1>
+      <p class="intro">Once, monthly, through the 50:50 Club, or as a local business.</p>
+    </div>
+    <div class="wrap">
+      <div style="margin:28px 0 24px;">${donatePanel()}</div>
+
+      <div class="grid2" style="margin-bottom:24px;">
+        <div class="fm-card" id="fm">
+          <div class="eyebrow">Monthly giving</div>
+          <h2>Future Makers</h2>
+          <p class="fm-strap">Dependable funding for the resources, experiences and opportunities the Minster community chooses.</p>
+          <div class="fm-price">£10 a month</div>
+          <p class="fm-year">That's £120 of support across the year.</p>
+          <ul class="fm-benefits">
+            <li>Your name on the supporters wall, if you'd like</li>
+            <li>Regular updates on what your money funded</li>
+            <li>Cancel any time</li>
+          </ul>
+          ${data.payments
+            ? `<button class="btn btn-ink btn-big" data-add-membership>Become a Future Maker</button>`
+            : `<a class="btn btn-ink btn-big" href="mailto:${EMAIL.finance}?subject=Future%20Makers">Email us to join</a>`}
+        </div>
+        <div class="white-card">
+          <div class="eyebrow">Termly draw</div>
+          <h3 style="margin:8px 0 10px;">50:50 Club</h3>
+          <p style="font-size:14.5px;color:var(--ink-mid);line-height:1.55;margin:0;">£10 buys one number for the term. Half the pot is shared between three winners; half funds student resources. 18+ only.</p>
+          ${fiftyOpen && data.payments ? `
+            <div class="stepper">
+              <button id="fiftyMinus" aria-label="Fewer numbers">−</button>
+              <span class="count">${fiftyQty}</span>
+              <button id="fiftyPlus" aria-label="More numbers">+</button>
+              <span class="note">${money(fiftyQty*1000)} for ${esc(s.fifty_term_label)}</span>
+            </div>
+            <button class="btn btn-ink" id="fiftyAdd" style="width:100%;">Add to basket</button>
+          ` : `<p class="note" style="margin:18px 0 0;"><b>Entries are closed right now.</b> They open at the start of each term.</p>`}
+          <details class="disclosure">
+            <summary>Rules</summary>
+            <ol>
+              <li>Open to over-18s connected to The Minster School community.</li>
+              <li>One number costs £10 per term.</li>
+              <li>Three winners are drawn at random at the end of each term.</li>
+              <li>Half the pot is split between the three winners; the other half goes to student resources.</li>
+              <li>Winners are notified by email within 48 hours.</li>
+              <li>Numbers do not carry over between terms.</li>
+              <li>The draw is run and witnessed by two committee members.</li>
+            </ol>
+          </details>
+        </div>
+      </div>
+
+      ${links.length ? `<div class="grid3" style="margin-bottom:24px;">
+        ${links.map(l=>`
+          <div class="hairline-card small-card">
+            <h3>${l.t}</h3><p>${l.b}</p>
+            <a class="btn btn-ghost btn-small" href="${esc(l.u)}" target="_blank" rel="noopener">${l.l}</a>
+          </div>`).join('')}
+      </div>` : ''}
+
+      <div class="sponsor-panel">
+        <h2>Local business partners</h2>
+        <p style="font-size:15px;color:var(--ink-mid);max-width:60ch;margin:0;">Back a pot or an event and be seen supporting your local school — on the site, at events and in our newsletter.</p>
+        <div class="grid3" style="margin-top:20px;">
+          <div class="tier-card"><div style="font-weight:700;">Supporter</div><div class="tier-price">£250</div><div class="note">Name and logo on the site</div></div>
+          <div class="tier-card"><div style="font-weight:700;">Partner</div><div class="tier-price">£750</div><div class="note">Logo plus event mentions</div></div>
+          <div class="tier-card"><div style="font-weight:700;">Pot sponsor</div><div class="tier-price">£1,500</div><div class="note">Your name on a funding pot</div></div>
+        </div>
+        <a class="btn btn-ink" style="margin-top:20px;" href="mailto:${EMAIL.hello}?subject=${encodeURIComponent('Business partnership')}">Talk to us about a partnership</a>
+      </div>
+    </div>`;
+}
+
+function pageMoney(){
+  const s = data.settings, raised = data.raised_pence, p = pct(raised, s.target_pence);
+  const pots = data.pots;
+  const funded = pots.filter(x=>x.status==='Funded'||x.status==='Delivered').length;
+  return `
+    <div class="wrap page-head">
+      <div class="eyebrow">Where the money goes</div>
+      <h1>${money(s.target_pence)} for ${esc(s.year_label)}, spent in the open.</h1>
+      <p class="intro">Every priority is published with what it costs, what it makes possible and how far the money has got.</p>
+    </div>
+    <div class="wrap">
+      <div class="summary-panel">
+        <div class="summary-figs">
+          <div><div class="fig-label">Raised so far</div><div class="fig-num">${money(raised)}</div></div>
+          <div><div class="fig-label">Still to raise</div><div class="fig-num">${money(Math.max(0, s.target_pence-raised))}</div></div>
+          <div><div class="fig-label">Priorities funded</div><div class="fig-num">${funded} of ${pots.length}</div></div>
+        </div>
+        <div class="track"><div class="track-fill" style="width:${p}%"></div></div>
+        <div style="margin-top:22px;"><button class="btn btn-coral" data-donate>Donate now</button></div>
+      </div>
+
+      <div class="section-head"><h2>Funding priorities</h2></div>
+      ${pots.length ? pots.map(pt=>{
+        const pp = pct(pt.raised_pence, pt.goal_pence);
+        const done = pt.status==='Funded' || pt.status==='Delivered';
+        return `
+        <div class="hairline-card pot-row">
+          <div>
+            <span class="chip ${done?'chip-coral':'chip-cyan'}">${esc(pt.status)}</span>
+            <div class="pot-title">${esc(pt.title)}</div>
+            <p class="pot-blurb">${esc(pt.blurb || '')}</p>
+          </div>
+          <div>
+            <div class="pot-raised">${money(pt.raised_pence)}</div>
+            <div class="pot-of">${pt.goal_pence?`raised of ${money(pt.goal_pence)}`:'Cost being confirmed'}</div>
+            ${pt.goal_pence?`<div class="track-cyan"><div class="track-cyan-fill" style="width:${pp}%"></div></div>
+            <div class="pot-status">${done?'Fully funded':money(Math.max(0,pt.goal_pence-pt.raised_pence))+' to go'}</div>`:''}
+          </div>
+        </div>`;
+      }).join('') : emptyState('Priorities for '+esc(s.year_label)+' are being agreed', 'They\'ll appear here once the committee has costed the most-backed ideas.')}
+
+      <div class="grid3" style="margin-top:32px;">
+        <div class="bordered-card">
+          <h3>How a priority gets funded</h3>
+          <p>Ideas move through five stages: ${POT_STATUSES.join(', ')}. Community voting sets the priorities; the trustees approve all spending in line with the charity's purposes.</p>
+        </div>
+        <div class="bordered-card">
+          <h3>What we funded last year</h3>
+          <p>Around £12,000 helped fund a careers platform, outdoor seating, football pitch divider nets, SEND equipment, recital hall chairs, coach hire and science equipment.</p>
+        </div>
+        <div class="bordered-card">
+          <h3>Accounts and minutes</h3>
+          <p>Our accounts, annual reports and AGM minutes are published on the <a class="link" href="#/about" data-scroll="docs">About page</a>.</p>
+        </div>
+      </div>
+    </div>`;
+}
+
+function pageSuggest(){
+  const ideas = data.ideas;
+  return `
+    <div class="wrap page-head">
+      <div class="eyebrow">Suggest &amp; vote</div>
+      <h1>You decide what we fund.</h1>
+      <p class="intro">Students, parents, carers and staff all get an equal vote. One vote per idea.</p>
+    </div>
+    <div class="wrap">
+      <div class="grid3" style="margin:28px 0 40px;">
+        <div class="hairline-card step-card"><div class="step-num">01</div><div style="font-weight:700;margin-bottom:6px;">Suggest it</div><div class="note" style="color:var(--ink-mid);">Tell us what Minster needs and roughly what it would cost.</div></div>
+        <div class="hairline-card step-card"><div class="step-num">02</div><div style="font-weight:700;margin-bottom:6px;">Vote on it</div><div class="note" style="color:var(--ink-mid);">Students vote on equal terms with adults.</div></div>
+        <div class="hairline-card step-card"><div class="step-num">03</div><div style="font-weight:700;margin-bottom:6px;">See it happen</div><div class="note" style="color:var(--ink-mid);">We publish every funding priority and what the money paid for.</div></div>
+      </div>
+
+      <div class="two-col">
+        <div>
+          ${ideas.length ? ideas.map(idea=>{
+            const v = voted.has(idea.id);
+            return `
+            <div class="hairline-card suggest-row">
+              <button class="big-vote ${v?'voted':''}" data-vote="${idea.id}" aria-label="Vote for ${esc(idea.title)}">
+                <span>▲</span><span class="num">${idea.votes}</span>
+              </button>
+              <div>
+                <span class="chip chip-cyan">${esc(idea.who)}</span>
+                <span class="chip chip-ink" style="margin-left:6px;">${idea.cost_pence?('About '+money(idea.cost_pence)):'Cost to be estimated'}</span>
+                <div class="suggest-title">${esc(idea.title)}</div>
+                <p class="idea-blurb" style="margin-bottom:0;">${esc(idea.blurb || '')}</p>
+              </div>
+            </div>`;
+          }).join('') : emptyState('No ideas up for vote yet', 'Post the first one — it\'ll appear here once the committee has checked it.')}
+          <p class="note" style="margin-top:18px;">Community voting helps set our funding priorities. The charity's trustees keep final responsibility for approving spending.</p>
+        </div>
+
+        <div class="form-panel">
+          ${suggestSent ? `
+            <h3>Thanks — idea received.</h3>
+            <p style="font-size:15px;line-height:1.55;margin:0 0 18px;">The committee checks every suggestion before it goes up for vote. Yours should appear within a few days.</p>
+            <button class="btn btn-coral" id="suggestAgain" style="width:100%;">Suggest another</button>
+          ` : `
+          <h3>Post your idea</h3>
+          <div class="field"><label for="sf-title">What should we fund?</label>
+            <input id="sf-title" type="text" maxlength="120" value="${esc(suggestForm.title)}" placeholder="e.g. New basketball hoops"></div>
+          <div class="field"><label for="sf-blurb">What would it make possible?</label>
+            <textarea id="sf-blurb" rows="3" maxlength="600" placeholder="A sentence or two is plenty">${esc(suggestForm.blurb)}</textarea></div>
+          <div class="field"><label for="sf-cost">Rough cost</label>
+            <div class="field-cost"><span>£</span><input id="sf-cost" type="number" min="0" step="50" value="${esc(suggestForm.cost)}" placeholder="Optional"></div>
+            <div class="field-note">A guess is fine — we cost it properly.</div></div>
+          <div class="field"><label for="sf-who">I'm a</label>
+            <select id="sf-who">${['Student','Parent / carer','Staff'].map(w=>`<option ${suggestForm.who===w?'selected':''}>${w}</option>`).join('')}</select></div>
+          <button class="btn btn-coral" id="submitIdea" style="width:100%;" ${busy?'disabled':''}>${busy?'Sending…':'Post my idea'}</button>
+          `}
+        </div>
+      </div>
+    </div>`;
+}
+
+function pageEvents(){
+  return `
+    <div class="wrap page-head">
+      <div class="eyebrow">Events &amp; tickets</div>
+      <h1>What's on.</h1>
+      <p class="intro">Buy tickets online, or reserve a place at free events. Questions? <a class="link" href="mailto:${EMAIL.events}">${EMAIL.events}</a></p>
+    </div>
+    <div class="wrap" style="margin-top:28px;">
+      ${data.events.length ? `<div class="grid3">${data.events.map(eventCard).join('')}</div>`
+        : emptyState('New events coming soon', `Dates for this year are being confirmed. Want to help run one? Email <a class="link" href="mailto:${EMAIL.events}">${EMAIL.events}</a>.`)}
+    </div>`;
+}
+
+function pageWall(){
+  const fm = data.supporters.filter(s=>s.kind==='future_maker');
+  const local = data.supporters.filter(s=>s.kind==='local');
+  const biz = data.supporters.filter(s=>s.kind==='business');
+  const card = s => `
+    <div class="hairline-card small-card">
+      ${s.tier?`<span class="chip chip-cyan">${esc(s.tier)}</span>`:''}
+      <h3 style="${s.tier?'margin-top:12px;':''}">${s.url?`<a href="${esc(s.url)}" target="_blank" rel="noopener" style="text-decoration:none;">${esc(s.name)} ↗</a>`:esc(s.name)}</h3>
+      ${s.note?`<p style="margin:0;">${esc(s.note)}</p>`:''}
+    </div>`;
+  const any = fm.length || local.length || biz.length;
+  return `
+    <div class="wrap page-head">
+      <div class="eyebrow">Supporters wall</div>
+      <h1>Everyone making more possible.</h1>
+      <p class="intro">Future Makers, local groups and business partners — thank you.</p>
+    </div>
+    <div class="wrap" style="margin-top:28px;">
+      ${!any ? emptyState('Be the first name on the wall', 'Become a Future Maker or a business partner and we\'ll feature you here.') : ''}
+      ${biz.length?`<div class="section-head"><h2>Business partners</h2></div><div class="grid3" style="margin-bottom:44px;">${biz.map(card).join('')}</div>`:''}
+      ${local.length?`<div class="section-head"><h2>Local partners</h2></div><div class="grid3" style="margin-bottom:44px;">${local.map(card).join('')}</div>`:''}
+      ${fm.length?`<div class="section-head"><h2>Future Makers</h2></div><div class="wall-names" style="margin-bottom:44px;">${fm.map(s=>`<span class="wall-name">${esc(s.name)}</span>`).join('')}</div>`:''}
+      <div class="strip strip-ink" style="margin-top:28px;">
+        <div><h2>Want your name up here?</h2><p>Join Future Makers or become a business partner.</p></div>
+        <a class="btn btn-coral btn-big" href="#/give">See ways to give</a>
+      </div>
+    </div>`;
+}
+
+function pageAbout(){
+  const groups = {};
+  data.documents.forEach(d=>{ (groups[d.category] = groups[d.category] || []).push(d); });
+  const order = ['AGM minutes','Annual report','Accounts','Committee minutes','Policy','Other'];
+  return `
+    <div class="wrap page-head">
+      <div class="eyebrow">About</div>
+      <h1>Run by volunteers, for every student.</h1>
+      <p class="intro">Minster More is the parent teacher association for The Minster School, Southwell — entirely volunteer-run.</p>
+    </div>
+    <div class="wrap">
+      <section style="padding-top:28px;">${pvmCards(true)}</section>
+
+      ${data.committee.length ? `
+        <div class="section-head"><h2>The committee</h2></div>
+        <div class="committee-grid" style="margin-bottom:12px;">
+          ${data.committee.map(c=>`
+            <div class="hairline-card committee-card">
+              <div class="portrait">${c.photo_url?`<img src="${esc(c.photo_url)}" alt="${esc(c.name)}">`:initials(c.name)}</div>
+              <div style="font-weight:700;">${esc(c.name)}</div>
+              <div class="committee-role">${esc(c.role)}</div>
+            </div>`).join('')}
+        </div>` : ''}
+
+      <div class="two-col" style="margin-top:44px;">
+        <div>
+          <div class="section-head" id="docs"><h2>Documents</h2></div>
+          ${order.filter(k=>groups[k]).map(k=>`
+            <div class="doc-group">
+              <h3>${k}</h3>
+              ${groups[k].map(d=>`
+                <a class="doc-row" href="${esc(d.file_url)}" target="_blank" rel="noopener">
+                  <span><span class="t">${esc(d.title)}</span>${d.doc_date?`<br><span class="d">${fmtDate(d.doc_date,{day:'numeric',month:'long',year:'numeric'})}</span>`:''}</span>
+                  <span class="pdf-tag">Open</span>
+                </a>`).join('')}
+            </div>`).join('')}
+          <div class="doc-group">
+            <h3>Brand &amp; mission</h3>
+            <a class="doc-row" href="./assets/Minster-More-brand-and-mission.pdf" target="_blank" rel="noopener">
+              <span><span class="t">Minster More — brand and mission</span><br><span class="d">Purpose, vision, mission and funding model</span></span>
+              <span class="pdf-tag">Open</span>
+            </a>
+          </div>
+
+          <div class="section-head" style="margin-top:36px;"><h2>Contact us</h2></div>
+          <div class="contact-list">
+            <a href="mailto:${EMAIL.hello}"><span class="what">General enquiries &amp; partnerships</span><span class="addr">${EMAIL.hello}</span></a>
+            <a href="mailto:${EMAIL.events}"><span class="what">Events &amp; tickets</span><span class="addr">${EMAIL.events}</span></a>
+            <a href="mailto:${EMAIL.finance}"><span class="what">Donations, Gift Aid &amp; accounts</span><span class="addr">${EMAIL.finance}</span></a>
+            <a href="mailto:${EMAIL.team}"><span class="what">Volunteering &amp; the committee</span><span class="addr">${EMAIL.team}</span></a>
+          </div>
+        </div>
+
+        <div class="form-panel" id="volunteer" style="position:static;">
+          ${volunteerSent ? `
+            <h3>Thank you!</h3>
+            <p style="font-size:15px;line-height:1.55;margin:0;">We'll be in touch soon. Any questions in the meantime: <a href="mailto:${EMAIL.team}" style="color:var(--coral);">${EMAIL.team}</a></p>
+          ` : `
+            <h3>Volunteer with us</h3>
+            <div class="field"><label for="vf-name">Name</label><input id="vf-name" type="text" autocomplete="name"></div>
+            <div class="field"><label for="vf-email">Email</label><input id="vf-email" type="email" autocomplete="email"></div>
+            <div class="field"><label for="vf-help">How could you help?</label>
+              <select id="vf-help"><option>Event days</option><option>Committee meetings</option><option>Behind the scenes</option><option>Not sure yet</option></select></div>
+            <button class="btn btn-coral" id="volunteerSubmit" style="width:100%;" ${busy?'disabled':''}>${busy?'Sending…':'Send'}</button>
+            <p class="note" style="margin:14px 0 0;">We'll only use your details to get in touch about volunteering.</p>
+          `}
+        </div>
+      </div>
+    </div>`;
+}
+
+function pageThanks(){
+  return `
+    <div class="wrap page-head" style="padding-bottom:40px;">
+      <div class="eyebrow">Payment received</div>
+      <h1>Thank you — you're making more possible.</h1>
+      <p class="intro">A receipt is on its way to your inbox. Any questions, email <a class="link" href="mailto:${EMAIL.finance}">${EMAIL.finance}</a>.</p>
+      <div class="hero-ctas" style="margin-top:28px;">
+        <a class="btn btn-coral btn-big" href="#/money">See where the money goes</a>
+        <a class="btn btn-ghost btn-big" href="#/suggest">Suggest an idea</a>
+      </div>
+    </div>`;
+}
+
+function pagePrivacy(){
+  return `
+    <div class="wrap page-head"><div class="eyebrow">Privacy</div><h1>How we use your information.</h1></div>
+    <div class="wrap prose">
+      <p>Minster More is the working name of Southwell Minster School Parent Teacher Association (registered charity 516332). We are the data controller for the information collected on this site.</p>
+      <h2>What we collect, and why</h2>
+      <p><b>Donations, memberships and tickets.</b> Payments are handled by Stripe. We receive your name, email and what you bought so we can send receipts, manage your membership and run events. We never see or store your card details.</p>
+      <p><b>Gift Aid.</b> If you add Gift Aid we keep your name, house name or number, postcode and donation records so we can claim from HMRC, which requires us to keep them for six years.</p>
+      <p><b>Reservations and volunteering.</b> We keep your name and email to manage your place or get in touch about helping.</p>
+      <p><b>Suggestions and votes.</b> Suggestions are anonymous. To stop double voting, your browser stores a random code; it doesn't identify you.</p>
+      <h2>Cookies</h2>
+      <p>We don't use advertising or tracking cookies. Your browser stores your basket and voting code locally so the site works properly.</p>
+      <h2>Who we share it with</h2>
+      <p>Only the services that run the site (Stripe for payments, Supabase for our database, Railway for hosting) and HMRC for Gift Aid claims. We never sell your information.</p>
+      <h2>Your rights</h2>
+      <p>You can ask to see, correct or delete the information we hold about you. Email <a href="mailto:${EMAIL.hello}">${EMAIL.hello}</a>. You can also complain to the Information Commissioner's Office at ico.org.uk.</p>
+    </div>`;
+}
+
+/* ---------------- MODALS ---------------- */
+function openModal(m){ modal = m; renderModal(); }
+function closeModal(){ modal = null; busy = false; renderModal(); }
+
+function renderModal(){
+  const root = document.getElementById('modalRoot');
+  if(!modal || !data){ root.innerHTML=''; document.body.style.overflow=''; return; }
+  document.body.style.overflow = 'hidden';
+  let inner = '';
+  if(modal.type === 'donate'){
+    inner = `<div class="overlay center" data-close><div class="dialog" role="dialog" aria-label="Make a donation">
+      <div class="modal-head"><h2>Make a donation</h2><button class="close-btn" data-close aria-label="Close">&times;</button></div>
+      ${donateBox()}
+    </div></div>`;
+  }
+  if(modal.type === 'reserve' || modal.type === 'ticket'){
+    const ev = data.events.find(e=>e.id===modal.id);
+    if(!ev){ modal=null; root.innerHTML=''; return; }
+    const max = Math.min(modal.type==='ticket'?10:20, ev.remaining ?? 20);
+    inner = `<div class="overlay center" data-close><div class="dialog" role="dialog">
+      <div class="modal-head"><h2>${esc(ev.title)}</h2><button class="close-btn" data-close aria-label="Close">&times;</button></div>
+      <p class="note" style="margin:-8px 0 18px;">${fmtDate(ev.starts_at,{weekday:'long',day:'numeric',month:'long'})}, ${fmtTime(ev.starts_at)}${ev.location?' · '+esc(ev.location):''}</p>
+      ${modal.type==='reserve' ? `
+        <div class="field"><label for="rv-name">Name</label><input id="rv-name" autocomplete="name"></div>
+        <div class="field"><label for="rv-email">Email</label><input id="rv-email" type="email" autocomplete="email"></div>
+      ` : ''}
+      <div class="field"><label for="rv-qty">${modal.type==='reserve'?'Places':'Tickets'}${modal.type==='ticket'?` · ${money(ev.price_pence)} each`:''}</label>
+        <select id="rv-qty">${Array.from({length:max},(_, i)=>`<option>${i+1}</option>`).join('')}</select></div>
+      <button class="btn btn-coral btn-big" id="rvGo" style="width:100%;">${modal.type==='reserve'?'Reserve my place':'Add to basket'}</button>
+    </div></div>`;
+  }
+  if(modal.type === 'basket'){
+    const total = basketTotal();
+    const giftable = basket.filter(b=>b.kind==='donation'||b.kind==='membership').reduce((s,b)=>s+b.unit_pence*b.qty,0);
+    const hasMember = basket.some(b=>b.kind==='membership');
+    const hasFifty = basket.some(b=>b.kind==='fifty');
+    inner = `<div class="overlay" data-close><div class="sheet" role="dialog" aria-label="Your basket">
+      <div class="modal-head"><h2>Your basket</h2><button class="close-btn" data-close aria-label="Close">&times;</button></div>
+      ${basket.length===0 ? `<p style="color:var(--ink-soft);">Nothing in here yet.</p>
+        <button class="btn btn-coral" data-donate style="width:100%;">Make a donation</button>` : `
+        ${basket.map((b,i)=>`
+          <div class="basket-line">
+            <div><div style="font-weight:600;">${esc(b.label)}${b.qty>1?` × ${b.qty}`:''}</div><div class="meta">${esc(b.meta||'')}</div></div>
+            <div style="text-align:right;"><div style="font-weight:700;">${money(b.unit_pence*b.qty)}${b.kind==='membership'?'/mo':''}</div>
+            <button class="remove-btn" data-remove="${i}">Remove</button></div>
+          </div>`).join('')}
+        <div class="basket-total"><span>Total today</span><span>${money(total)}</span></div>
+        <div class="basket-extra">
+          ${hasMember ? `<div class="field"><label for="bk-wall">Name for the supporters wall <span class="note">(optional)</span></label>
+            <input id="bk-wall" maxlength="80" placeholder="e.g. The Smith family" value="${esc(basketForm.wall_name)}"></div>` : ''}
+          ${giftable ? giftAidBlock(basketForm, giftable, 'basket') : ''}
+          ${hasFifty ? `<label class="check"><input type="checkbox" id="bk-18" ${basketForm.over18?'checked':''}> <span>I'm 18 or over and agree to the 50:50 Club rules.</span></label>` : ''}
+        </div>
+        <button class="btn btn-coral btn-big" id="payBtn" style="width:100%;" ${busy?'disabled':''}>${busy?'Taking you to checkout…':`Pay ${money(total)}`}</button>
+        <div class="secure">Secure payment by Stripe${hasMember?' · Future Makers renews monthly, cancel any time':''}</div>
+      `}
+    </div></div>`;
+  }
+  root.innerHTML = inner;
+}
+
+/* ---------------- ACTIONS ---------------- */
+async function vote(id){
+  if(voted.has(id)){ toast('You have already voted for that one.'); return; }
+  voted.add(id); save('mm_voted', [...voted]);
+  const idea = data.ideas.find(i=>i.id===id); if(idea) idea.votes += 1;
+  render();
+  try{ await post('/api/vote', {idea_id:id, voter}); toast('Vote counted — thank you.'); }
+  catch(e){
+    if(!/already voted/.test(e.message)){ voted.delete(id); save('mm_voted', [...voted]); if(idea) idea.votes -= 1; render(); }
+    toast(e.message);
+  }
+}
+
+async function startCheckout(items, extra){
+  busy = true; renderModal(); if(page==='give') render();
+  try{
+    const {url} = await post('/api/checkout', Object.assign({items}, extra));
+    location.href = url;
+  }catch(e){ busy = false; renderModal(); if(page==='give') render(); toast(e.message); }
+}
+
+function readGA(state){
+  if(!state.giftAid) return null;
+  const g = state.ga;
+  if(!g.full_name.trim() || !g.house.trim() || !g.postcode.trim()){ toast('Gift Aid needs your full name, house name or number, and postcode.'); return false; }
+  return g;
+}
+
+function donateNow(){
+  const amt = donationAmount();
+  if(amt < 100){ toast('Please choose an amount of £1 or more.'); return; }
+  const ga = readGA(donation); if(ga === false) return;
+  startCheckout([{kind:'donation', amount_pence:amt}], {gift_aid: ga});
+}
+
+function payBasket(){
+  if(basket.some(b=>b.kind==='fifty') && !basketForm.over18){ toast('Please confirm you\'re 18 or over for the 50:50 Club.'); return; }
+  const giftable = basket.some(b=>b.kind==='donation'||b.kind==='membership');
+  const ga = giftable ? readGA(basketForm) : null; if(ga === false) return;
+  const items = basket.map(b=> b.kind==='ticket' ? {kind:'ticket', event_id:b.ref_id, qty:b.qty}
+    : b.kind==='fifty' ? {kind:'fifty', qty:b.qty, over18:basketForm.over18}
+    : b.kind==='donation' ? {kind:'donation', amount_pence:b.unit_pence}
+    : {kind:'membership'});
+  startCheckout(items, {gift_aid: ga, wall_name: basketForm.wall_name});
+}
+
+function addToBasket(item){
+  const existing = basket.find(b=> b.kind===item.kind && b.ref_id===item.ref_id && item.kind!=='donation');
+  if(item.kind==='membership' && existing){ toast('Future Makers is already in your basket.'); openModal({type:'basket'}); return; }
+  if(existing) existing.qty += item.qty; else basket.push(item);
+  saveBasket();
+  openModal({type:'basket'});
+}
+
+function updateBasketBtn(){
+  const n = basketCount();
+  document.getElementById('basketCount').textContent = n;
+  document.getElementById('basketBtn').hidden = n === 0;
+}
+
+function updateDonateLabels(){
+  const amt = donationAmount();
+  document.querySelectorAll('[data-donate-label]').forEach(el=> el.textContent = amt>0 ? money(amt) : '');
+  document.querySelectorAll('[data-ga-boost="donation"]').forEach(el=> el.textContent = amt>0 ? '+'+money(Math.round(amt*.25)) : '+25%');
+}
+
+/* ---------------- EVENTS (delegated) ---------------- */
+document.addEventListener('click', e=>{
+  const t = e.target.closest('button, a, [data-close]');
+  if(!t) return;
+  if(t.hasAttribute('data-close') && (e.target === t || t.classList.contains('close-btn'))){ closeModal(); return; }
+  if(t.matches('[data-donate]')){ e.preventDefault(); closeDrawer(); openModal({type:'donate'}); return; }
+  if(t.matches('[data-amount]')){ donation.amount = Number(t.dataset.amount); donation.other=''; modal ? renderModal() : null; if(page==='give') render(); return; }
+  if(t.id === 'donateGo'){ donateNow(); return; }
+  if(t.matches('[data-vote]')){ vote(t.dataset.vote); return; }
+  if(t.matches('[data-reserve]')){ openModal({type:'reserve', id:t.dataset.reserve}); return; }
+  if(t.matches('[data-ticket]')){ openModal({type:'ticket', id:t.dataset.ticket}); return; }
+  if(t.id === 'rvGo'){
+    const ev = data.events.find(x=>x.id===modal.id); const qty = Number(document.getElementById('rv-qty').value);
+    if(modal.type==='ticket'){
+      addToBasket({kind:'ticket', ref_id:ev.id, label:ev.title+' ticket', meta:fmtDate(ev.starts_at,{weekday:'short',day:'numeric',month:'short'})+', '+fmtTime(ev.starts_at), unit_pence:ev.price_pence, qty});
+    } else {
+      const name = document.getElementById('rv-name').value, email = document.getElementById('rv-email').value;
+      t.disabled = true;
+      post('/api/reserve', {event_id:ev.id, name, email, qty})
+        .then(()=>{ closeModal(); toast(`You're booked in for ${ev.title}.`); loadData(); })
+        .catch(err=>{ t.disabled = false; toast(err.message); });
+    }
+    return;
+  }
+  if(t.matches('[data-add-membership]')){ addToBasket({kind:'membership', label:'Future Makers', meta:'£10 a month · cancel any time', unit_pence:1000, qty:1}); return; }
+  if(t.id === 'fiftyMinus'){ fiftyQty = Math.max(1, fiftyQty-1); render(); return; }
+  if(t.id === 'fiftyPlus'){ fiftyQty = Math.min(20, fiftyQty+1); render(); return; }
+  if(t.id === 'fiftyAdd'){ addToBasket({kind:'fifty', label:'50:50 Club number', meta:data.settings.fifty_term_label, unit_pence:1000, qty:fiftyQty}); fiftyQty = 1; render(); return; }
+  if(t.matches('[data-remove]')){ basket.splice(Number(t.dataset.remove),1); saveBasket(); renderModal(); return; }
+  if(t.id === 'payBtn'){ payBasket(); return; }
+  if(t.id === 'basketBtn'){ openModal({type:'basket'}); return; }
+  if(t.id === 'submitIdea'){
+    if(!suggestForm.title.trim()){ toast('Give it a title first.'); return; }
+    busy = true; render();
+    post('/api/suggest', suggestForm)
+      .then(()=>{ busy=false; suggestSent = true; suggestForm = {title:'', blurb:'', cost:'', who:suggestForm.who}; render(); })
+      .catch(err=>{ busy=false; render(); toast(err.message); });
+    return;
+  }
+  if(t.id === 'suggestAgain'){ suggestSent = false; render(); return; }
+  if(t.id === 'volunteerSubmit'){
+    const body = {name:document.getElementById('vf-name').value, email:document.getElementById('vf-email').value, help:document.getElementById('vf-help').value};
+    if(!body.name.trim() || !body.email.trim()){ toast('Add your name and email.'); return; }
+    t.disabled = true; t.textContent = 'Sending…';
+    post('/api/volunteer', body)
+      .then(()=>{ volunteerSent = true; render(); })
+      .catch(err=>{ t.disabled=false; t.textContent='Send'; toast(err.message); });
+    return;
+  }
+  if(t.matches('a[data-scroll]')){
+    const id = t.dataset.scroll; const target = t.getAttribute('href');
+    if(location.hash === target || (target === '#/' + page)){ e.preventDefault(); document.getElementById(id)?.scrollIntoView({behavior:'smooth'}); }
+    else { window._scrollTo = id; }
+    closeModal();
+  }
+});
+
+document.addEventListener('input', e=>{
+  const t = e.target;
+  if(t.id === 'otherAmount'){
+    donation.other = t.value;
+    document.querySelectorAll('.amount.on').forEach(b=>b.classList.toggle('on', !donation.other));
+    updateDonateLabels(); return;
+  }
+  if(t.dataset.ga){
+    const [prefix, field] = t.dataset.ga.split('.');
+    (prefix==='donation'?donation:basketForm).ga[field] = t.value; return;
+  }
+  if(t.id === 'sf-title') suggestForm.title = t.value;
+  if(t.id === 'sf-blurb') suggestForm.blurb = t.value;
+  if(t.id === 'sf-cost')  suggestForm.cost = t.value;
+  if(t.id === 'bk-wall')  basketForm.wall_name = t.value;
+});
+document.addEventListener('change', e=>{
+  const t = e.target;
+  if(t.dataset.gaToggle){
+    const st = t.dataset.gaToggle==='donation' ? donation : basketForm;
+    st.giftAid = t.checked;
+    if(modal) renderModal(); if(page==='give' && (!modal || modal.type!=='donate')) render();
+  }
+  if(t.id === 'sf-who') suggestForm.who = t.value;
+  if(t.id === 'bk-18') basketForm.over18 = t.checked;
+});
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ if(modal) closeModal(); closeDrawer(); } });
+
+function openDrawer(){ document.getElementById('mobileDrawer').classList.add('open'); document.getElementById('burgerBtn').setAttribute('aria-expanded','true'); document.body.style.overflow='hidden'; }
+function closeDrawer(){ document.getElementById('mobileDrawer').classList.remove('open'); document.getElementById('burgerBtn').setAttribute('aria-expanded','false'); if(!modal) document.body.style.overflow=''; }
+document.getElementById('burgerBtn').addEventListener('click', openDrawer);
+document.getElementById('burgerClose').addEventListener('click', closeDrawer);
+document.getElementById('mobileDrawer').addEventListener('click', e=>{ if(e.target.id==='mobileDrawer' || e.target.closest('.mobile-nav a, .logo')) closeDrawer(); });
+
+/* ---------------- RENDER ---------------- */
+function render(){
+  document.getElementById('navPills').innerHTML = navHTML();
+  document.getElementById('mobileNav').innerHTML = navHTML();
+  updateBasketBtn();
+  if(!data) return;
+  const fn = {home:pageHome, give:pageGive, money:pageMoney, suggest:pageSuggest, events:pageEvents, wall:pageWall, about:pageAbout, privacy:pagePrivacy, thanks:pageThanks}[page];
+  document.getElementById('app').innerHTML = fn();
+  if(window._scrollTo){ const el = document.getElementById(window._scrollTo); window._scrollTo = null; if(el) setTimeout(()=>el.scrollIntoView({behavior:'smooth'}), 50); }
+}
+
+async function loadData(){
+  try{
+    const res = await fetch('/api/site');
+    if(!res.ok) throw new Error();
+    data = await res.json();
+    render(); renderModal();
+  }catch(e){
+    if(!data) document.getElementById('app').innerHTML = `<div class="wrap loading">The site couldn't load just now. Please refresh, or email <a class="link" href="mailto:${EMAIL.hello}">${EMAIL.hello}</a>.</div>`;
+  }
+}
+
+route();
+loadData();
+</script>
+</body>
+</html>
