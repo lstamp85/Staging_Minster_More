@@ -1247,8 +1247,13 @@ async function loadData(){
   }
 }
 
-route();
-loadData();
+// A committee login link that lands on the homepage belongs to /admin
+if(/(access_token|refresh_token|error_description)=/.test(location.hash) || /[?&]code=/.test(location.search)){
+  location.replace('/admin' + location.search + location.hash);
+} else {
+  route();
+  loadData();
+}
 </script>
 </body>
 </html>
