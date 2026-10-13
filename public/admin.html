@@ -557,9 +557,9 @@ function loginShell(inner){
   return `<div class="login"><div class="login-card"><div class="logo">Minster M<span class="plus">+</span>re</div>${inner}</div></div>`;
 }
 function loginForm(){
-  return `<h1>Committee login</h1><p>Enter your email and we'll send you a link to log in. No password needed.</p>
+  return `<h1>Committee login</h1><p>Enter your email and we'll send you a login code. No password needed.</p>
     <div class="f"><label for="lg-email">Email</label><input type="email" id="lg-email" autocomplete="email"></div>
-    <button class="btn btn-coral" id="sendLink" style="width:100%;margin-top:14px;">Email me a login link</button>`;
+    <button class="btn btn-coral" id="sendLink" style="width:100%;margin-top:14px;">Email me a login code</button>`;
 }
 function go(v, s){ view = v; sub = s || null; editing = null; render(); window.scrollTo(0,0); }
 
@@ -572,9 +572,25 @@ document.addEventListener('click', async e=>{
       t.disabled = true;
       const {error} = await sb.auth.signInWithOtp({email, options:{emailRedirectTo: location.origin + '/admin'}});
       if(error){ t.disabled=false; return toast(error.message, true); }
-      $('#root').innerHTML = loginShell(`<h1>Check your email</h1><p>We've sent a login link to <b>${esc(email)}</b>. Open it on this device.</p><p class="muted">Only committee members on the admin list can get in.</p>`);
+      window._loginEmail = email;
+      $('#root').innerHTML = loginShell(`<h1>Check your email</h1><p>We've sent a code to <b>${esc(email)}</b>. Type it in here.</p>
+        <div class="f"><label for="lg-code">Login code</label><input type="text" id="lg-code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" style="font-size:22px;letter-spacing:.2em;text-align:center;"></div>
+        <button class="btn btn-coral" id="verifyCode" style="width:100%;margin-top:14px;">Log in</button>
+        <p class="muted" style="margin-top:14px;">Codes expire after an hour. Only committee members on the admin list can get in. <button id="restartLogin" style="color:var(--coral-dark);font-weight:600;font-size:13px;">Use a different email</button></p>`);
+      $('#lg-code').focus();
       return;
     }
+    if(t.id==='verifyCode'){
+      const token = $('#lg-code').value.replace(/\s/g,''); if(!token) return toast('Enter the code from the email.', true);
+      t.disabled = true;
+      const {data, error} = await sb.auth.verifyOtp({email: window._loginEmail, token, type: 'email'});
+      if(error){ t.disabled = false; return toast(error.message.includes('expired') ? 'That code has expired or was already used. Request a new one.' : error.message, true); }
+      user = data.user;
+      const {data:isAdmin} = await sb.rpc('is_admin');
+      if(!isAdmin){ $('#root').innerHTML = loginShell(`<h1>Not on the admin list</h1><p><b>${esc(user.email)}</b> isn't set up as an admin. Ask an existing admin to add you.</p><button class="btn btn-ghost" id="signOut">Sign out</button>`); return; }
+      render(); return;
+    }
+    if(t.id==='restartLogin'){ $('#root').innerHTML = loginShell(loginForm()); return; }
     if(t.id==='signOut'){ await sb.auth.signOut(); user=null; render(); return; }
     if(t.dataset.view){ go(t.dataset.view); return; }
     if(t.dataset.sub){ sub = t.dataset.sub; editing=null; render(); return; }
@@ -676,7 +692,10 @@ document.addEventListener('click', async e=>{
     }
   }catch(err){ console.error(err); }
 });
-document.addEventListener('keydown', e=>{ if(e.key==='Enter' && e.target.id==='lg-email') $('#sendLink').click(); });
+document.addEventListener('keydown', e=>{
+  if(e.key==='Enter' && e.target.id==='lg-email') $('#sendLink').click();
+  if(e.key==='Enter' && e.target.id==='lg-code') $('#verifyCode').click();
+});
 
 /* ---------------- START ---------------- */
 (async function start(){

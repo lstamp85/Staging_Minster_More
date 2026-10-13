@@ -27,7 +27,9 @@ Don't upload `node_modules` (Railway installs it).
 3. **Authentication → URL Configuration**:
    - Site URL: `https://minstermore.org.uk` (or your Railway URL until the domain is pointed)
    - Redirect URLs: add `https://minstermore.org.uk/admin` (and the Railway URL + `/admin`)
-4. **Authentication → Emails**: optionally change the "Magic Link" template subject to "Your Minster More login link".
+4. **Authentication → Emails → Magic Link**: set the subject to "Your Minster More login code" and replace the body with:
+   `<h2>Your Minster More login code</h2><p>Enter this code on the committee login page:</p><p style="font-size:28px;font-weight:bold;letter-spacing:4px">{{ .Token }}</p><p>It expires in one hour.</p>`
+   (A code is used instead of a link because work email systems often open links automatically, which uses them up.)
 5. **Project Settings → API**: copy the **Project URL**, the **anon public** key and the **service_role** key for step 4.
 
 ## 3. Stripe (payments)
