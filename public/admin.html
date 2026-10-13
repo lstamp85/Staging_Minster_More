@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
 <title>Minster More — Admin</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%231c2540'/%3E%3Cpath d='M16 8v16M8 16h16' stroke='%23f0866b' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23131f35'/%3E%3Ctext x='9' y='47' font-family='Archivo,Arial,Helvetica,sans-serif' font-weight='800' font-size='42' letter-spacing='-2' fill='%23f8f5ee'%3Em%3C/text%3E%3Cpath d='M48 12v14M41 19h14' stroke='%23e2875e' stroke-width='4.5' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
@@ -25,8 +25,8 @@
   a{color:var(--coral-dark);}
   button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;font-size:inherit;}
   button:disabled{opacity:.5;cursor:not-allowed;}
-  .logo{font-family:'Archivo',sans-serif;font-weight:800;font-size:20px;letter-spacing:-0.02em;display:flex;align-items:center;}
-  .logo .plus{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:5px;background:var(--coral);color:var(--ink);font-size:13px;margin:0 1px;}
+  .logo{display:inline-flex;align-items:flex-start;font-family:'Archivo',sans-serif;font-weight:800;font-size:24px;letter-spacing:-0.04em;word-spacing:0.02em;line-height:1;text-decoration:none;color:var(--ink);white-space:nowrap;}
+  .logo .lp{color:#e2875e;font-size:.74em;font-weight:800;letter-spacing:0;margin-left:.06em;transform:translateY(-.3em);}
   .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:999px;font-weight:600;font-size:14px;padding:10px 18px;white-space:nowrap;text-decoration:none;}
   .btn-coral{background:var(--coral);color:var(--ink);} .btn-coral:hover{background:var(--coral-hover);}
   .btn-ink{background:var(--ink);color:var(--paper);}
@@ -528,7 +528,7 @@ async function render(){
   root.innerHTML = `
     <div class="shell">
       <aside class="side">
-        <a class="logo" href="/" target="_blank">Minster M<span class="plus">+</span>re</a>
+        <a class="logo" href="/" target="_blank">minster more<span class="lp">+</span></a>
         <div class="who">${esc(user.email)}</div>
         <nav class="tabs">${NAV.map(([k,l])=>`<button class="tab ${view===k?'on':''}" data-view="${k}"><span>${l}</span>${counts[k]?`<span class="badge">${counts[k]}</span>`:''}</button>`).join('')}</nav>
         <div class="side-foot"><a href="/" target="_blank">View website ↗</a><button id="signOut">Sign out</button></div>
@@ -554,7 +554,7 @@ async function render(){
 }
 
 function loginShell(inner){
-  return `<div class="login"><div class="login-card"><div class="logo">Minster M<span class="plus">+</span>re</div>${inner}</div></div>`;
+  return `<div class="login"><div class="login-card"><div class="logo">minster more<span class="lp">+</span></div>${inner}</div></div>`;
 }
 function loginForm(){
   return `<h1>Committee login</h1><p>Enter your email and we'll send you a login code. No password needed.</p>

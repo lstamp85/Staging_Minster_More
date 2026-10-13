@@ -7,8 +7,8 @@
 <meta name="description" content="The fundraising community for The Minster School, Southwell. Donate, become a Future Maker, buy event tickets, and vote on where the money goes.">
 <meta property="og:title" content="Minster More">
 <meta property="og:description" content="Making more possible for every student at The Minster School, Southwell.">
-<meta name="theme-color" content="#1c2540">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23f0866b'/%3E%3Cpath d='M16 8v16M8 16h16' stroke='%231c2540' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#131f35">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23131f35'/%3E%3Ctext x='9' y='47' font-family='Archivo,Arial,Helvetica,sans-serif' font-weight='800' font-size='42' letter-spacing='-2' fill='%23f8f5ee'%3Em%3C/text%3E%3Cpath d='M48 12v14M41 19h14' stroke='%23e2875e' stroke-width='4.5' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
@@ -55,8 +55,8 @@
   /* HEADER */
   header.site{position:sticky;top:0;z-index:50;background:var(--header-bg);backdrop-filter:blur(10px);border-bottom:1px solid var(--hairline);}
   .header-row{max-width:1200px;margin:0 auto;padding:14px 22px;display:flex;align-items:center;gap:20px;}
-  .logo{display:flex;align-items:center;font-family:'Archivo',sans-serif;font-weight:800;font-size:22px;letter-spacing:-0.02em;cursor:pointer;flex:0 0 auto;text-decoration:none;}
-  .logo .plus-tile{display:inline-flex;align-items:center;justify-content:center;width:19px;height:19px;border-radius:6px;background:var(--coral);font-size:15px;line-height:1;margin:0 1px;color:var(--ink);}
+  .logo{display:inline-flex;align-items:flex-start;font-family:'Archivo',sans-serif;font-weight:800;font-size:24px;letter-spacing:-0.04em;word-spacing:0.02em;line-height:1;cursor:pointer;flex:0 0 auto;text-decoration:none;color:var(--ink);white-space:nowrap;}
+  .logo .lp{color:#e2875e;font-size:.74em;font-weight:800;letter-spacing:0;margin-left:.06em;transform:translateY(-.3em);}
   nav.pills{display:flex;gap:2px;flex:1 1 auto;flex-wrap:wrap;}
   nav.pills a{font-size:14px;font-weight:500;padding:8px 11px;border-radius:999px;color:var(--ink-mid);text-decoration:none;transition:background .15s;}
   nav.pills a:hover{background:oklch(0.24 0.05 258 / 0.07);}
@@ -335,7 +335,7 @@
 
 <header class="site">
   <div class="header-row">
-    <a class="logo" href="#/">Minster M<span class="plus-tile">+</span>re</a>
+    <a class="logo" href="#/">minster more<span class="lp">+</span></a>
     <nav class="pills" id="navPills" aria-label="Main"></nav>
     <div class="header-right">
       <button class="donate-btn" data-donate>Donate</button>
@@ -348,7 +348,7 @@
 <div class="mobile-drawer" id="mobileDrawer">
   <div class="mobile-drawer-inner">
     <div class="mobile-drawer-head">
-      <a class="logo" href="#/">Minster M<span class="plus-tile">+</span>re</a>
+      <a class="logo" href="#/">minster more<span class="lp">+</span></a>
       <button class="burger-close" id="burgerClose" aria-label="Close menu">&times;</button>
     </div>
     <nav class="mobile-nav" id="mobileNav" aria-label="Main"></nav>
@@ -361,7 +361,7 @@
 <footer>
   <div class="wrap foot-grid">
     <div>
-      <a class="logo" href="#/" style="color:var(--paper);font-size:22px;margin-bottom:12px;">Minster M<span class="plus-tile">+</span>re</a>
+      <a class="logo" href="#/" style="color:#f8f5ee;font-size:26px;margin-bottom:14px;">minster more<span class="lp">+</span></a>
       <p style="font-size:14px;color:oklch(0.975 0.006 258/.8);max-width:30ch;line-height:1.5;margin:0 0 14px;">The fundraising community for The Minster School, Southwell.</p>
       <button class="btn btn-coral btn-small foot-donate" data-donate>Make a donation</button>
     </div>
