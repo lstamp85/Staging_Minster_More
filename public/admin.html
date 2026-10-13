@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Minster More — Admin</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%231c2540'/%3E%3Cpath d='M16 8v16M8 16h16' stroke='%23f0866b' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="/vendor/supabase/supabase.js"></script>
+<script src="/config.js"></script>
+<style>
+  :root{
+    --ink: oklch(0.24 0.05 258); --ink-soft: oklch(0.50 0.03 258); --ink-mid: oklch(0.38 0.04 258);
+    --coral: oklch(0.72 0.15 35); --coral-hover: oklch(0.66 0.16 35); --coral-dark: oklch(0.45 0.13 30);
+    --cyan: oklch(0.72 0.15 195); --paper: oklch(0.975 0.006 258); --card:#fff;
+    --hairline: oklch(0.24 0.05 258 / 0.12); --tint: oklch(0.72 0.15 195 / 0.18);
+    --ok: oklch(0.55 0.13 150); --bad: oklch(0.55 0.18 25);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:'Sora',sans-serif;font-size:15px;-webkit-font-smoothing:antialiased;}
+  h1,h2,h3{font-family:'Archivo',sans-serif;margin:0;}
+  a{color:var(--coral-dark);}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;font-size:inherit;}
+  button:disabled{opacity:.5;cursor:not-allowed;}
+  .logo{font-family:'Archivo',sans-serif;font-weight:800;font-size:20px;letter-spacing:-0.02em;display:flex;align-items:center;}
+  .logo .plus{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:5px;background:var(--coral);color:var(--ink);font-size:13px;margin:0 1px;}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:999px;font-weight:600;font-size:14px;padding:10px 18px;white-space:nowrap;text-decoration:none;}
+  .btn-coral{background:var(--coral);color:var(--ink);} .btn-coral:hover{background:var(--coral-hover);}
+  .btn-ink{background:var(--ink);color:var(--paper);}
+  .btn-ghost{border:2px solid var(--ink);padding:8px 16px;color:var(--ink);}
+  .btn-sm{padding:6px 12px;font-size:13px;}
+  .btn-ghost.btn-sm{padding:4px 10px;}
+  .btn-danger{color:var(--bad);font-weight:600;font-size:13px;padding:6px 8px;}
+  .btn-ok{background:var(--ok);color:#fff;}
+
+  /* LOGIN */
+  .login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;}
+  .login-card{background:var(--card);border:1px solid var(--hairline);border-radius:24px;padding:36px;width:min(420px,100%);}
+  .login-card h1{font-size:26px;margin:18px 0 8px;}
+  .login-card p{color:var(--ink-soft);line-height:1.5;margin:0 0 20px;}
+
+  /* LAYOUT */
+  .shell{display:grid;grid-template-columns:230px 1fr;min-height:100vh;}
+  .side{background:var(--ink);color:var(--paper);padding:22px 14px;position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;}
+  .side .logo{color:var(--paper);text-decoration:none;padding:0 10px 4px;}
+  .side .who{font-size:12px;color:oklch(0.975 0.006 258/.6);padding:0 10px 18px;word-break:break-all;}
+  .tabs{display:flex;flex-direction:column;gap:2px;flex:1;}
+  .tab{text-align:left;padding:10px 12px;border-radius:10px;font-weight:500;color:oklch(0.975 0.006 258/.82);display:flex;justify-content:space-between;align-items:center;}
+  .tab:hover{background:oklch(0.975 0.006 258/.08);}
+  .tab.on{background:var(--coral);color:var(--ink);font-weight:700;}
+  .badge{background:var(--coral);color:var(--ink);border-radius:999px;font-size:11.5px;font-weight:700;padding:1px 7px;}
+  .tab.on .badge{background:var(--ink);color:var(--paper);}
+  .side-foot{display:grid;gap:4px;padding-top:16px;}
+  .side-foot a,.side-foot button{color:oklch(0.975 0.006 258/.7);font-size:13px;text-align:left;padding:6px 12px;text-decoration:none;}
+  main{padding:32px 36px 80px;max-width:1100px;width:100%;}
+  .head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:22px;}
+  .head h1{font-size:30px;letter-spacing:-0.01em;}
+  .head p{margin:6px 0 0;color:var(--ink-soft);max-width:62ch;line-height:1.5;}
+  .card{background:var(--card);border:1px solid var(--hairline);border-radius:18px;padding:22px;margin-bottom:18px;}
+  .card h2{font-size:18px;margin-bottom:14px;}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:18px;}
+  .stat{background:var(--card);border:1px solid var(--hairline);border-radius:16px;padding:18px;}
+  .stat.dark{background:var(--ink);color:var(--paper);border:none;}
+  .stat .l{font-size:12px;text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--ink-soft);}
+  .stat.dark .l{color:var(--cyan);}
+  .stat .n{font-family:'Archivo',sans-serif;font-weight:800;font-size:32px;margin-top:4px;}
+  .track{height:10px;border-radius:999px;background:oklch(0.975 0.006 258/.18);overflow:hidden;margin-top:12px;}
+  .track div{height:100%;background:var(--coral);}
+
+  table{width:100%;border-collapse:collapse;font-size:14px;}
+  th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:700;padding:8px 10px;border-bottom:1px solid var(--hairline);}
+  td{padding:11px 10px;border-bottom:1px solid var(--hairline);vertical-align:top;}
+  tr:last-child td{border-bottom:none;}
+  td.r,th.r{text-align:right;}
+  .muted{color:var(--ink-soft);font-size:13px;}
+  .actions{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;}
+  .chip{display:inline-block;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:600;background:oklch(0.24 0.05 258/.07);color:var(--ink-mid);}
+  .chip.cyan{background:var(--tint);color:var(--coral-dark);}
+  .chip.coral{background:var(--coral);color:var(--ink);}
+  .chip.ok{background:oklch(0.55 0.13 150/.15);color:oklch(0.4 0.12 150);}
+  .table-wrap{overflow-x:auto;}
+
+  .form{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .form .full{grid-column:1/-1;}
+  .f label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;}
+  .f .hint{font-size:12px;color:var(--ink-soft);margin-top:4px;}
+  .f input[type=text],.f input[type=email],.f input[type=number],.f input[type=date],.f input[type=datetime-local],.f input[type=url],.f textarea,.f select{
+    width:100%;border:1px solid var(--hairline);border-radius:10px;padding:10px 12px;font-size:15px;font-family:inherit;background:#fff;color:var(--ink);}
+  .f input:focus,.f textarea:focus,.f select:focus{outline:3px solid var(--cyan);outline-offset:0;}
+  .f textarea{min-height:90px;resize:vertical;}
+  .money{display:flex;align-items:center;border:1px solid var(--hairline);border-radius:10px;background:#fff;padding-left:12px;}
+  .money span{color:var(--ink-soft);}
+  .money input{border:none !important;}
+  .check{display:flex;gap:8px;align-items:center;font-size:14px;}
+  .check input{width:18px;height:18px;accent-color:var(--coral-dark);}
+  .form-foot{display:flex;gap:10px;align-items:center;margin-top:18px;}
+  .row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;}
+  .row .f{flex:1;min-width:150px;}
+  .seg{display:inline-flex;background:oklch(0.24 0.05 258/.07);border-radius:999px;padding:3px;margin-bottom:16px;flex-wrap:wrap;}
+  .seg button{padding:7px 14px;border-radius:999px;font-weight:600;font-size:13.5px;color:var(--ink-mid);}
+  .seg button.on{background:var(--ink);color:var(--paper);}
+  .empty{padding:28px;text-align:center;color:var(--ink-soft);border:2px dashed var(--hairline);border-radius:14px;}
+  .notice{background:var(--tint);border-radius:14px;padding:14px 16px;font-size:14px;line-height:1.5;margin-bottom:18px;}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:12px 20px;border-radius:999px;font-size:14px;z-index:99;max-width:calc(100% - 32px);}
+  .toast.err{background:var(--bad);}
+  .winner{font-family:'Archivo',sans-serif;font-size:20px;font-weight:800;}
+  .thumb{width:36px;height:36px;border-radius:50%;object-fit:cover;background:var(--tint);}
+
+  @media (max-width:860px){
+    .shell{grid-template-columns:1fr;}
+    .side{position:sticky;height:auto;z-index:10;padding:12px;flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px;}
+    .side .who,.side-foot{display:none;}
+    .tabs{flex-direction:row;overflow-x:auto;flex-basis:100%;gap:4px;padding-bottom:2px;}
+    .tab{white-space:nowrap;padding:8px 12px;gap:6px;}
+    main{padding:20px 16px 80px;}
+    .form{grid-template-columns:1fr;}
+    .head h1{font-size:24px;}
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="toast"></div>
+
+<script>
+/* =====================================================================
+   Minster More — admin
+   Logins are Supabase magic links. Only emails in the admins table get
+   access (enforced by database security rules, not just this page).
+   ===================================================================== */
+const cfg = window.MM_CONFIG || {};
+const sb = (cfg.supabaseUrl && window.supabase) ? window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey) : null;
+
+const POT_STATUSES = ['Proposed','Open for voting','Fundraising','Funded','Delivered'];
+const DOC_CATS = ['AGM minutes','Committee minutes','Accounts','Annual report','Policy','Other'];
+const KIND_LABEL = {future_maker:'Future Maker', local:'Local partner', business:'Business partner'};
+
+let user = null, view = 'dashboard', sub = null, editing = null, counts = {};
+
+/* ---------------- HELPERS ---------------- */
+const $ = s => document.querySelector(s);
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function money(p){ const n=(p||0)/100; return '£'+n.toLocaleString('en-GB',{minimumFractionDigits:n%1?2:0,maximumFractionDigits:2}); }
+function toPence(v){ const n = parseFloat(String(v).replace(/[£,]/g,'')); return Number.isFinite(n) ? Math.round(n*100) : null; }
+function d(iso, withTime){ if(!iso) return ''; const o={day:'numeric',month:'short',year:'numeric',timeZone:'Europe/London'}; if(withTime){o.hour='numeric';o.minute='2-digit';} return new Date(iso).toLocaleString('en-GB',o); }
+function localDT(iso){ if(!iso) return ''; const t=new Date(iso); t.setMinutes(t.getMinutes()-t.getTimezoneOffset()); return t.toISOString().slice(0,16); }
+function toast(msg, err){ const el=$('#toast'); el.innerHTML=`<div class="toast ${err?'err':''}">${esc(msg)}</div>`; clearTimeout(window._t); window._t=setTimeout(()=>el.innerHTML='',3500); }
+function check(res){ if(res.error){ toast(res.error.message, true); throw res.error; } return res.data; }
+function csv(rows, name){
+  const text = rows.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text],{type:'text/csv'})); a.download = name; a.click();
+}
+function safeName(n){ return n.toLowerCase().replace(/[^a-z0-9.]+/g,'-').replace(/^-+|-+$/g,''); }
+
+/* ---------------- GENERIC EDITORS ---------------- */
+const TABLES = {
+  pots: {
+    title:'Funding priorities', single:'priority', order:[['sort',true],['created_at',true]],
+    intro:'The pots shown on “Where the money goes”. Update the raised figure as money is allocated.',
+    fields:[
+      {k:'title', label:'Title', type:'text', req:true, full:true},
+      {k:'blurb', label:'What it would make possible', type:'textarea', full:true},
+      {k:'goal_pence', label:'Cost', type:'money'},
+      {k:'raised_pence', label:'Raised so far', type:'money'},
+      {k:'status', label:'Stage', type:'select', options:POT_STATUSES},
+      {k:'sort', label:'Order', type:'number', hint:'Lower numbers show first'},
+    ],
+    cols:[['Priority', r=>`<b>${esc(r.title)}</b>`], ['Stage', r=>`<span class="chip cyan">${esc(r.status)}</span>`], ['Raised', r=>`${money(r.raised_pence)} <span class="muted">of ${money(r.goal_pence)}</span>`, 'r']],
+  },
+  events: {
+    title:'Events', single:'event', order:[['starts_at',false]],
+    intro:'Free events take reservations; paid events sell tickets through Stripe. Unpublished events are hidden.',
+    fields:[
+      {k:'title', label:'Event name', type:'text', req:true, full:true},
+      {k:'blurb', label:'Description', type:'textarea', full:true},
+      {k:'starts_at', label:'Date and time', type:'datetime', req:true},
+      {k:'location', label:'Location', type:'text'},
+      {k:'price_pence', label:'Ticket price', type:'money', hint:'Leave at 0 for a free event'},
+      {k:'capacity', label:'Capacity', type:'number', hint:'Optional — sales stop when full'},
+      {k:'published', label:'Show on the website', type:'checkbox', def:true},
+    ],
+    cols:[['Event', r=>`<b>${esc(r.title)}</b><br><span class="muted">${d(r.starts_at,true)}</span>`], ['Price', r=>r.price_pence?money(r.price_pence):'Free'], ['', r=>r.published?'':'<span class="chip">Hidden</span>']],
+    extra: r=>`<button class="btn btn-ghost btn-sm" data-attendees="${r.id}">Attendees</button>`,
+  },
+  news: {
+    title:'News', single:'news item', order:[['published_on',false]],
+    intro:'The latest three appear on the home page.',
+    fields:[
+      {k:'title', label:'Headline', type:'text', req:true, full:true},
+      {k:'body', label:'Summary', type:'textarea', full:true},
+      {k:'published_on', label:'Date', type:'date', def:()=>new Date().toISOString().slice(0,10)},
+    ],
+    cols:[['Headline', r=>`<b>${esc(r.title)}</b>`], ['Date', r=>d(r.published_on)]],
+  },
+  documents: {
+    title:'Documents', single:'document', order:[['doc_date',false]],
+    intro:'AGM minutes, accounts and reports, listed on the About page. PDFs work best.',
+    fields:[
+      {k:'title', label:'Title', type:'text', req:true, full:true, hint:'e.g. AGM minutes — September 2026'},
+      {k:'category', label:'Type', type:'select', options:DOC_CATS},
+      {k:'doc_date', label:'Date', type:'date'},
+      {k:'file_url', label:'File', type:'file', folder:'documents', pathKey:'file_path', accept:'.pdf,.doc,.docx,.xls,.xlsx', req:true, full:true},
+    ],
+    cols:[['Document', r=>`<a href="${esc(r.file_url)}" target="_blank" rel="noopener"><b>${esc(r.title)}</b></a>`], ['Type', r=>`<span class="chip cyan">${esc(r.category)}</span>`], ['Date', r=>d(r.doc_date)]],
+    onDelete: r=> r.file_path && sb.storage.from('files').remove([r.file_path]),
+  },
+  committee: {
+    title:'Committee', single:'committee member', order:[['sort',true]],
+    intro:'Shown on the About page. A photo is optional — initials are shown otherwise.',
+    fields:[
+      {k:'name', label:'Name', type:'text', req:true},
+      {k:'role', label:'Role', type:'text', req:true, hint:'e.g. Chair, Treasurer'},
+      {k:'photo_url', label:'Photo', type:'file', folder:'committee', accept:'image/*', full:true},
+      {k:'sort', label:'Order', type:'number'},
+    ],
+    cols:[['', r=>r.photo_url?`<img class="thumb" src="${esc(r.photo_url)}" alt="">`:''], ['Name', r=>`<b>${esc(r.name)}</b>`], ['Role', r=>esc(r.role)]],
+  },
+  supporters: {
+    title:'Supporters wall', single:'supporter', order:[['approved',true],['created_at',false]],
+    intro:'New Future Makers who give a name at checkout appear here as “Awaiting approval”.',
+    fields:[
+      {k:'name', label:'Name', type:'text', req:true},
+      {k:'kind', label:'Type', type:'select', options:Object.keys(KIND_LABEL), labels:KIND_LABEL},
+      {k:'tier', label:'Business tier', type:'select', options:['','Supporter','Partner','Pot sponsor'], hint:'Business partners only'},
+      {k:'url', label:'Website', type:'url'},
+      {k:'note', label:'Note', type:'text', full:true, hint:'e.g. Sponsoring the recital hall chairs'},
+      {k:'approved', label:'Show on the website', type:'checkbox', def:true},
+    ],
+    cols:[['Name', r=>`<b>${esc(r.name)}</b>${r.note?`<br><span class="muted">${esc(r.note)}</span>`:''}`], ['Type', r=>`${KIND_LABEL[r.kind]}${r.tier?` · ${esc(r.tier)}`:''}`], ['', r=>r.approved?'':'<span class="chip coral">Awaiting approval</span>']],
+    extra: r=> r.approved ? '' : `<button class="btn btn-ok btn-sm" data-approve-supporter="${r.id}">Approve</button>`,
+  },
+};
+
+function fieldHTML(f, row){
+  let v = row ? row[f.k] : (typeof f.def === 'function' ? f.def() : f.def);
+  const id = 'fld-'+f.k;
+  let input;
+  if(f.type==='textarea') input = `<textarea id="${id}">${esc(v)}</textarea>`;
+  else if(f.type==='money') input = `<div class="money"><span>£</span><input type="text" inputmode="decimal" id="${id}" value="${v!=null?(v/100):''}" placeholder="0"></div>`;
+  else if(f.type==='select') input = `<select id="${id}">${f.options.map(o=>`<option value="${esc(o)}" ${v===o||(!v&&!o)?'selected':''}>${esc(f.labels?f.labels[o]:(o||'—'))}</option>`).join('')}</select>`;
+  else if(f.type==='checkbox') return `<div class="f ${f.full?'full':''}"><label class="check" style="margin-top:28px;"><input type="checkbox" id="${id}" ${v?'checked':''}> ${f.label}</label></div>`;
+  else if(f.type==='datetime') input = `<input type="datetime-local" id="${id}" value="${localDT(v)}">`;
+  else if(f.type==='date') input = `<input type="date" id="${id}" value="${esc(v||'')}">`;
+  else if(f.type==='number') input = `<input type="number" id="${id}" value="${v??''}">`;
+  else if(f.type==='file') input = `${v?`<div class="muted" style="margin-bottom:6px;">Current: <a href="${esc(v)}" target="_blank" rel="noopener">view file</a> — choose a new one to replace it</div>`:''}<input type="file" id="${id}" accept="${f.accept||''}">`;
+  else input = `<input type="${f.type==='url'?'url':'text'}" id="${id}" value="${esc(v)}">`;
+  return `<div class="f ${f.full?'full':''}"><label for="${id}">${f.label}${f.req?'':' <span class="muted">(optional)</span>'}</label>${input}${f.hint?`<div class="hint">${f.hint}</div>`:''}</div>`;
+}
+
+async function readForm(t, row){
+  const out = {};
+  for(const f of t.fields){
+    const el = document.getElementById('fld-'+f.k);
+    if(f.type==='checkbox') out[f.k] = el.checked;
+    else if(f.type==='money') out[f.k] = el.value.trim()==='' ? 0 : toPence(el.value);
+    else if(f.type==='number') out[f.k] = el.value==='' ? (f.k==='sort'?0:null) : Number(el.value);
+    else if(f.type==='datetime') out[f.k] = el.value ? new Date(el.value).toISOString() : null;
+    else if(f.type==='file'){
+      const file = el.files[0];
+      if(file){
+        if(file.size > 20*1024*1024) throw new Error('Files must be under 20MB.');
+        const path = `${f.folder}/${Date.now()}-${safeName(file.name)}`;
+        check(await sb.storage.from('files').upload(path, file, {contentType:file.type, upsert:false}));
+        out[f.k] = sb.storage.from('files').getPublicUrl(path).data.publicUrl;
+        if(f.pathKey) out[f.pathKey] = path;
+        if(row && f.pathKey && row[f.pathKey]) sb.storage.from('files').remove([row[f.pathKey]]);
+      } else if(!row){ out[f.k] = null; }
+    }
+    else out[f.k] = el.value.trim() || null;
+    if(f.req && (out[f.k]==null || out[f.k]==='') && !(f.type==='file' && row && row[f.k])) throw new Error(`${f.label} is required.`);
+    if(f.type==='money' && out[f.k]===null) throw new Error(`${f.label} must be a number.`);
+  }
+  return out;
+}
+
+async function tableView(key){
+  const t = TABLES[key];
+  let q = sb.from(key).select('*');
+  t.order.forEach(([c,asc])=> q = q.order(c, {ascending:asc, nullsFirst:false}));
+  const rows = check(await q);
+  const row = editing && editing !== 'new' ? rows.find(r=>r.id===editing) : null;
+  return `
+    <div class="head"><div><h1>${t.title}</h1><p>${t.intro}</p></div>
+      ${editing ? '' : `<button class="btn btn-coral" data-new>Add ${t.single}</button>`}</div>
+    ${editing ? `
+      <div class="card">
+        <h2>${row?'Edit':'New'} ${t.single}</h2>
+        <div class="form">${t.fields.map(f=>fieldHTML(f,row)).join('')}</div>
+        <div class="form-foot"><button class="btn btn-coral" data-save="${key}">Save</button><button class="btn btn-ghost" data-cancel>Cancel</button></div>
+      </div>` : ''}
+    <div class="card table-wrap">
+      ${rows.length ? `<table><thead><tr>${t.cols.map(c=>`<th class="${c[2]||''}">${c[0]}</th>`).join('')}<th></th></tr></thead><tbody>
+        ${rows.map(r=>`<tr>${t.cols.map(c=>`<td class="${c[2]||''}">${c[1](r)}</td>`).join('')}
+          <td><div class="actions">${t.extra?t.extra(r):''}<button class="btn btn-ghost btn-sm" data-edit="${r.id}">Edit</button><button class="btn-danger" data-del="${key}:${r.id}">Delete</button></div></td></tr>`).join('')}
+      </tbody></table>` : `<div class="empty">Nothing here yet.</div>`}
+    </div>`;
+}
+
+/* ---------------- SPECIAL VIEWS ---------------- */
+async function dashboardView(){
+  const [settings, funds] = await Promise.all([
+    sb.from('settings').select('*').eq('id',1).single().then(check),
+    sb.from('funds').select('*').order('received_on',{ascending:false}).order('created_at',{ascending:false}).then(check),
+  ]);
+  const total = funds.reduce((s,f)=>s+f.amount_pence,0);
+  const online = funds.filter(f=>f.source==='online').reduce((s,f)=>s+f.amount_pence,0);
+  const p = settings.target_pence ? Math.min(100, Math.round(total/settings.target_pence*100)) : 0;
+  return `
+    <div class="head"><div><h1>Totaliser</h1><p>Everything here adds up to the “raised so far” figure on the website. Online donations and Future Makers payments are added automatically.</p></div></div>
+    <div class="stats">
+      <div class="stat dark"><div class="l">Raised · ${esc(settings.year_label)}</div><div class="n">${money(total)}</div><div class="track"><div style="width:${p}%"></div></div></div>
+      <div class="stat"><div class="l">Target</div><div class="n">${money(settings.target_pence)}</div></div>
+      <div class="stat"><div class="l">Online</div><div class="n">${money(online)}</div></div>
+      <div class="stat"><div class="l">Added by hand</div><div class="n">${money(total-online)}</div></div>
+    </div>
+    <div class="card">
+      <h2>Add money to the totaliser</h2>
+      <div class="row">
+        <div class="f" style="max-width:160px;"><label for="fd-amt">Amount</label><div class="money"><span>£</span><input type="text" inputmode="decimal" id="fd-amt" placeholder="0"></div></div>
+        <div class="f" style="flex:2;"><label for="fd-label">What it's from</label><input type="text" id="fd-label" placeholder="e.g. Quiz Night takings, 50:50 draw, bank transfer"></div>
+        <div class="f" style="max-width:170px;"><label for="fd-date">Date</label><input type="date" id="fd-date" value="${new Date().toISOString().slice(0,10)}"></div>
+        <button class="btn btn-coral" id="addFund">Add</button>
+      </div>
+      <p class="muted" style="margin:12px 0 0;">Ticket and 50:50 sales aren't added automatically — add the profit after each event or draw. Use a negative amount to correct a mistake.</p>
+    </div>
+    <div class="card">
+      <h2>This year's target</h2>
+      <div class="row">
+        <div class="f" style="max-width:160px;"><label for="st-year">Year label</label><input type="text" id="st-year" value="${esc(settings.year_label)}"></div>
+        <div class="f" style="max-width:200px;"><label for="st-target">Target</label><div class="money"><span>£</span><input type="text" inputmode="decimal" id="st-target" value="${settings.target_pence/100}"></div></div>
+        <button class="btn btn-ink" id="saveTarget">Save</button>
+      </div>
+      <p class="muted" style="margin:12px 0 0;">Starting a new year? Export the list below, then delete last year's entries to reset the total.</p>
+    </div>
+    <div class="card table-wrap">
+      <div class="head" style="margin-bottom:8px;"><h2 style="margin:0;">All entries</h2>${funds.length?`<button class="btn btn-ghost btn-sm" id="exportFunds">Export CSV</button>`:''}</div>
+      ${funds.length ? `<table><thead><tr><th>Date</th><th>From</th><th></th><th class="r">Amount</th><th></th></tr></thead><tbody>
+        ${funds.map(f=>`<tr><td class="muted">${d(f.received_on)}</td><td>${esc(f.label)}${f.created_by?`<br><span class="muted">Added by ${esc(f.created_by)}</span>`:''}</td>
+          <td>${f.source==='online'?'<span class="chip cyan">Online</span>':''}${f.gift_aid_id?' <span class="chip ok">Gift Aid</span>':''}</td>
+          <td class="r"><b>${money(f.amount_pence)}</b></td><td><div class="actions"><button class="btn-danger" data-del="funds:${f.id}">Delete</button></div></td></tr>`).join('')}
+      </tbody></table>` : `<div class="empty">No money recorded yet. Start with your opening balance.</div>`}
+    </div>`;
+}
+
+async function ideasView(){
+  const status = sub || 'pending';
+  const [ideas, votes] = await Promise.all([
+    sb.from('ideas').select('*').eq('status',status).order('created_at',{ascending:false}).then(check),
+    sb.from('vote_counts').select('*').then(check),
+  ]);
+  const vm = Object.fromEntries(votes.map(v=>[v.idea_id, v.votes]));
+  const row = editing ? ideas.find(i=>i.id===editing) : null;
+  return `
+    <div class="head"><div><h1>Suggestions</h1><p>New ideas wait here until approved. Approved ideas appear on the website for voting.</p></div></div>
+    <div class="seg">${['pending','approved','rejected','archived'].map(s=>`<button class="${s===status?'on':''}" data-sub="${s}">${s[0].toUpperCase()+s.slice(1)}${s==='pending'&&counts.ideas?` (${counts.ideas})`:''}</button>`).join('')}</div>
+    ${row ? `<div class="card"><h2>Edit suggestion</h2><div class="form">
+        ${fieldHTML({k:'title',label:'Title',type:'text',req:true,full:true},row)}
+        ${fieldHTML({k:'blurb',label:'Description',type:'textarea',full:true},row)}
+        ${fieldHTML({k:'cost_pence',label:'Rough cost',type:'money'},row)}
+        ${fieldHTML({k:'who',label:'Suggested by',type:'select',options:['Student','Parent / carer','Staff']},row)}
+      </div><div class="form-foot"><button class="btn btn-coral" data-save-idea="${row.id}">Save</button><button class="btn btn-ghost" data-cancel>Cancel</button></div></div>` : ''}
+    <div class="card table-wrap">
+      ${ideas.length ? `<table><thead><tr><th>Idea</th><th>From</th><th class="r">Cost</th><th class="r">Votes</th><th></th></tr></thead><tbody>
+        ${ideas.map(i=>`<tr>
+          <td><b>${esc(i.title)}</b>${i.blurb?`<br><span class="muted">${esc(i.blurb)}</span>`:''}<br><span class="muted">${d(i.created_at)}</span></td>
+          <td>${esc(i.who)}</td><td class="r">${i.cost_pence?money(i.cost_pence):'—'}</td><td class="r"><b>${vm[i.id]||0}</b></td>
+          <td><div class="actions">
+            ${status!=='approved'?`<button class="btn btn-ok btn-sm" data-idea="${i.id}:approved">Approve</button>`:''}
+            ${status==='pending'?`<button class="btn btn-ghost btn-sm" data-idea="${i.id}:rejected">Reject</button>`:''}
+            ${status==='approved'?`<button class="btn btn-ghost btn-sm" data-idea="${i.id}:archived">Archive</button>`:''}
+            <button class="btn btn-ghost btn-sm" data-edit="${i.id}">Edit</button>
+            <button class="btn-danger" data-del="ideas:${i.id}">Delete</button>
+          </div></td></tr>`).join('')}
+      </tbody></table>` : `<div class="empty">${status==='pending'?'No new suggestions to review.':'Nothing here.'}</div>`}
+    </div>
+    ${status==='approved'?`<p class="muted">Archive an idea once it's become a funding priority or been discussed at the AGM — it comes off the voting list.</p>`:''}`;
+}
+
+async function attendeesView(id){
+  const [ev, res, tix] = await Promise.all([
+    sb.from('events').select('*').eq('id',id).single().then(check),
+    sb.from('reservations').select('*').eq('event_id',id).order('created_at').then(check),
+    sb.from('order_items').select('qty, created_at, orders!inner(name,email,status)').eq('kind','ticket').eq('ref_id',id).eq('orders.status','paid').then(check),
+  ]);
+  const list = [
+    ...tix.map(t=>({name:t.orders.name, email:t.orders.email, qty:t.qty, type:'Ticket', at:t.created_at})),
+    ...res.map(r=>({name:r.name, email:r.email, qty:r.qty, type:'Reservation', at:r.created_at, id:r.id})),
+  ].sort((a,b)=>a.at.localeCompare(b.at));
+  const total = list.reduce((s,l)=>s+l.qty,0);
+  window._attendees = {ev, list};
+  return `
+    <div class="head"><div><button class="btn btn-ghost btn-sm" data-back="events" style="margin-bottom:12px;">← Events</button>
+      <h1>${esc(ev.title)}</h1><p>${d(ev.starts_at,true)} · ${total} ${ev.price_pence?'tickets sold':'places reserved'}${ev.capacity?` of ${ev.capacity}`:''}${ev.price_pence?` · ${money(tix.reduce((s,t)=>s+t.qty,0)*ev.price_pence)} taken`:''}</p></div>
+      ${list.length?`<button class="btn btn-ghost" id="exportAttendees">Export CSV</button>`:''}</div>
+    <div class="card table-wrap">
+      ${list.length?`<table><thead><tr><th>Name</th><th>Email</th><th>Type</th><th class="r">Qty</th><th></th></tr></thead><tbody>
+        ${list.map(l=>`<tr><td>${esc(l.name||'—')}</td><td><a href="mailto:${esc(l.email)}">${esc(l.email||'')}</a></td><td>${l.type}</td><td class="r"><b>${l.qty}</b></td>
+          <td>${l.id?`<div class="actions"><button class="btn-danger" data-del="reservations:${l.id}">Cancel</button></div>`:''}</td></tr>`).join('')}
+      </tbody></table>`:`<div class="empty">No one yet.</div>`}
+    </div>`;
+}
+
+async function inboxView(){
+  const rows = check(await sb.from('volunteers').select('*').order('handled').order('created_at',{ascending:false}));
+  return `
+    <div class="head"><div><h1>Volunteers</h1><p>People who've offered to help through the website. Tick them off once someone's been in touch.</p></div></div>
+    <div class="card table-wrap">
+      ${rows.length?`<table><thead><tr><th>Name</th><th>Email</th><th>Interested in</th><th>Sent</th><th></th></tr></thead><tbody>
+        ${rows.map(r=>`<tr style="${r.handled?'opacity:.55':''}"><td><b>${esc(r.name)}</b></td><td><a href="mailto:${esc(r.email)}">${esc(r.email)}</a></td><td>${esc(r.help||'')}</td><td class="muted">${d(r.created_at)}</td>
+          <td><div class="actions"><button class="btn btn-ghost btn-sm" data-handled="${r.id}:${!r.handled}">${r.handled?'Mark new':'Done'}</button><button class="btn-danger" data-del="volunteers:${r.id}">Delete</button></div></td></tr>`).join('')}
+      </tbody></table>`:`<div class="empty">No volunteer sign-ups yet.</div>`}
+    </div>`;
+}
+
+async function paymentsView(){
+  const orders = check(await sb.from('orders').select('*').eq('status','paid').order('paid_at',{ascending:false}).limit(500));
+  window._orders = orders;
+  const total = orders.reduce((s,o)=>s+o.total_pence,0);
+  return `
+    <div class="head"><div><h1>Payments</h1><p>Every completed online payment. Refunds and subscription cancellations are handled in your Stripe dashboard.</p></div>
+      ${orders.length?`<button class="btn btn-ghost" id="exportOrders">Export CSV</button>`:''}</div>
+    <div class="stats"><div class="stat"><div class="l">Payments</div><div class="n">${orders.length}</div></div><div class="stat"><div class="l">Taken online</div><div class="n">${money(total)}</div></div></div>
+    <div class="card table-wrap">
+      ${orders.length?`<table><thead><tr><th>Date</th><th>From</th><th>For</th><th class="r">Total</th></tr></thead><tbody>
+        ${orders.map(o=>`<tr><td class="muted">${d(o.paid_at,true)}</td><td><b>${esc(o.name||'')}</b><br><a href="mailto:${esc(o.email)}">${esc(o.email||'')}</a></td>
+          <td>${(o.items||[]).map(i=>`${esc(i.label)}${i.qty>1?` × ${i.qty}`:''}`).join('<br>')}${o.gift_aid?'<br><span class="chip ok">Gift Aid</span>':''}</td>
+          <td class="r"><b>${money(o.total_pence)}</b></td></tr>`).join('')}
+      </tbody></table>`:`<div class="empty">No online payments yet.</div>`}
+    </div>`;
+}
+
+async function fiftyView(){
+  const settings = check(await sb.from('settings').select('fifty_term_label').eq('id',1).single());
+  const items = check(await sb.from('order_items').select('qty, term_label, created_at, orders!inner(name,email,status)').eq('kind','fifty').eq('orders.status','paid').order('created_at'));
+  const terms = [...new Set(items.map(i=>i.term_label).filter(Boolean))].reverse();
+  const term = sub || settings.fifty_term_label || terms[0] || '';
+  const rows = items.filter(i=>i.term_label===term);
+  let n = 0;
+  const entries = rows.map(r=>{ const from = n+1; n += r.qty; return {name:r.orders.name, email:r.orders.email, qty:r.qty, from, to:n}; });
+  window._fifty = {term, entries, total:n};
+  const pot = n*1000;
+  return `
+    <div class="head"><div><h1>50:50 Club</h1><p>Numbers are given out in order of purchase. Open or close entries in Settings by setting the term name.</p></div>
+      ${entries.length?`<button class="btn btn-ghost" id="exportFifty">Export CSV</button>`:''}</div>
+    <div class="notice">Entries are currently <b>${settings.fifty_term_label?`open for ${esc(settings.fifty_term_label)}`:'closed'}</b>. ${settings.fifty_term_label?'':'Set a term name in Settings to open them.'}</div>
+    ${terms.length>1?`<div class="seg">${terms.map(t=>`<button class="${t===term?'on':''}" data-sub="${esc(t)}">${esc(t)}</button>`).join('')}</div>`:''}
+    <div class="stats">
+      <div class="stat"><div class="l">Numbers sold</div><div class="n">${n}</div></div>
+      <div class="stat"><div class="l">Pot</div><div class="n">${money(pot)}</div></div>
+      <div class="stat"><div class="l">Winners share</div><div class="n">${money(pot/2)}</div></div>
+      <div class="stat"><div class="l">To student resources</div><div class="n">${money(pot/2)}</div></div>
+    </div>
+    ${n?`<div class="card"><h2>Draw</h2><p class="muted" style="margin:0 0 14px;">Picks three different numbers at random. Run it with two committee members present, as the rules require.</p>
+      <button class="btn btn-coral" id="drawFifty">Draw three winners</button><div id="drawResult" style="margin-top:16px;"></div></div>`:''}
+    <div class="card table-wrap">
+      ${entries.length?`<table><thead><tr><th>Numbers</th><th>Name</th><th>Email</th></tr></thead><tbody>
+        ${entries.map(e=>`<tr><td><b>${e.from===e.to?e.from:`${e.from}–${e.to}`}</b></td><td>${esc(e.name||'')}</td><td><a href="mailto:${esc(e.email)}">${esc(e.email||'')}</a></td></tr>`).join('')}
+      </tbody></table>`:`<div class="empty">No numbers sold${term?` for ${esc(term)}`:''} yet.</div>`}
+    </div>`;
+}
+
+async function giftAidView(){
+  const rows = check(await sb.from('funds').select('*, gift_aid_declarations(*)').not('gift_aid_id','is',null).order('received_on',{ascending:false}));
+  window._giftaid = rows;
+  const total = rows.reduce((s,r)=>s+r.amount_pence,0);
+  return `
+    <div class="head"><div><h1>Gift Aid</h1><p>Donations with a Gift Aid declaration. Export the CSV to copy into HMRC's Charities Online claim spreadsheet.</p></div>
+      ${rows.length?`<button class="btn btn-ghost" id="exportGA">Export for HMRC</button>`:''}</div>
+    <div class="stats"><div class="stat"><div class="l">Eligible donations</div><div class="n">${money(total)}</div></div><div class="stat dark"><div class="l">Gift Aid to claim</div><div class="n">${money(Math.round(total*.25))}</div></div></div>
+    <div class="card table-wrap">
+      ${rows.length?`<table><thead><tr><th>Date</th><th>Donor</th><th>Address</th><th class="r">Amount</th></tr></thead><tbody>
+        ${rows.map(r=>{ const g=r.gift_aid_declarations||{}; return `<tr><td class="muted">${d(r.received_on)}</td><td><b>${esc(g.full_name)}</b><br><span class="muted">${esc(r.label)}</span></td><td>${esc(g.house)}, ${esc(g.postcode)}</td><td class="r"><b>${money(r.amount_pence)}</b></td></tr>`; }).join('')}
+      </tbody></table>`:`<div class="empty">No Gift Aid donations yet.</div>`}
+    </div>
+    <p class="muted">Keep these records for six years. Remove a declaration if a donor tells you they no longer pay enough tax.</p>`;
+}
+
+async function settingsView(){
+  const s = check(await sb.from('settings').select('*').eq('id',1).single());
+  return `
+    <div class="head"><div><h1>Settings</h1><p>Links and switches for the Ways to give page. Leave a link blank to hide that card.</p></div></div>
+    <div class="card"><div class="form">
+      <div class="f full"><label for="st-fifty">50:50 Club — current term</label><input type="text" id="st-fifty" value="${esc(s.fifty_term_label||'')}" placeholder="e.g. Autumn term 2026">
+        <div class="hint">Entering a term name opens 50:50 entries on the website. Clear it to close entries before the draw.</div></div>
+      <div class="f full"><label for="st-easy">easyfundraising link</label><input type="url" id="st-easy" value="${esc(s.easyfundraising_url||'')}" placeholder="https://www.easyfundraising.org.uk/causes/..."></div>
+      <div class="f full"><label for="st-coop">Co-op Local Community Fund link</label><input type="url" id="st-coop" value="${esc(s.coop_url||'')}" placeholder="https://causes.coop.co.uk/..."></div>
+    </div><div class="form-foot"><button class="btn btn-coral" id="saveSettings">Save settings</button></div></div>`;
+}
+
+async function adminsView(){
+  const rows = check(await sb.from('admins').select('*').order('added_at'));
+  return `
+    <div class="head"><div><h1>Admins</h1><p>Anyone listed here can log in with a link sent to their email. They'll have full access, so only add committee members.</p></div></div>
+    <div class="card"><div class="row">
+      <div class="f"><label for="ad-email">Email address</label><input type="email" id="ad-email" placeholder="name@example.com"></div>
+      <button class="btn btn-coral" id="addAdmin">Add admin</button></div></div>
+    <div class="card table-wrap"><table><thead><tr><th>Email</th><th>Added</th><th></th></tr></thead><tbody>
+      ${rows.map(r=>`<tr><td><b>${esc(r.email)}</b>${r.email.toLowerCase()===user.email.toLowerCase()?' <span class="chip">You</span>':''}</td><td class="muted">${d(r.added_at)}</td>
+        <td><div class="actions">${r.email.toLowerCase()===user.email.toLowerCase()?'':`<button class="btn-danger" data-del-admin="${esc(r.email)}">Remove</button>`}</div></td></tr>`).join('')}
+    </tbody></table></div>`;
+}
+
+/* ---------------- SHELL ---------------- */
+const NAV = [
+  ['dashboard','Totaliser'], ['ideas','Suggestions'], ['pots','Funding priorities'], ['events','Events'],
+  ['payments','Payments'], ['fifty','50:50 Club'], ['giftaid','Gift Aid'],
+  ['documents','Documents'], ['news','News'], ['committee','Committee'], ['supporters','Supporters wall'],
+  ['inbox','Volunteers'], ['settings','Settings'], ['admins','Admins'],
+];
+
+async function refreshCounts(){
+  const [i, s, v] = await Promise.all([
+    sb.from('ideas').select('id',{count:'exact',head:true}).eq('status','pending'),
+    sb.from('supporters').select('id',{count:'exact',head:true}).eq('approved',false),
+    sb.from('volunteers').select('id',{count:'exact',head:true}).eq('handled',false),
+  ]);
+  counts = {ideas:i.count||0, supporters:s.count||0, inbox:v.count||0};
+}
+
+async function render(){
+  const root = $('#root');
+  if(!sb){ root.innerHTML = loginShell(`<p>The admin area isn't connected to the database yet. Set <b>SUPABASE_URL</b> and <b>SUPABASE_ANON_KEY</b> in Railway.</p>`); return; }
+  if(!user){ root.innerHTML = loginShell(loginForm()); return; }
+  await refreshCounts().catch(()=>{});
+  root.innerHTML = `
+    <div class="shell">
+      <aside class="side">
+        <a class="logo" href="/" target="_blank">Minster M<span class="plus">+</span>re</a>
+        <div class="who">${esc(user.email)}</div>
+        <nav class="tabs">${NAV.map(([k,l])=>`<button class="tab ${view===k?'on':''}" data-view="${k}"><span>${l}</span>${counts[k]?`<span class="badge">${counts[k]}</span>`:''}</button>`).join('')}</nav>
+        <div class="side-foot"><a href="/" target="_blank">View website ↗</a><button id="signOut">Sign out</button></div>
+      </aside>
+      <main id="main"><p class="muted">Loading…</p></main>
+    </div>`;
+  try{
+    let html;
+    if(view==='dashboard') html = await dashboardView();
+    else if(view==='ideas') html = await ideasView();
+    else if(view==='attendees') html = await attendeesView(sub);
+    else if(view==='inbox') html = await inboxView();
+    else if(view==='payments') html = await paymentsView();
+    else if(view==='fifty') html = await fiftyView();
+    else if(view==='giftaid') html = await giftAidView();
+    else if(view==='settings') html = await settingsView();
+    else if(view==='admins') html = await adminsView();
+    else html = await tableView(view);
+    $('#main').innerHTML = html;
+  }catch(e){
+    $('#main').innerHTML = `<div class="empty">Couldn't load this page: ${esc(e.message||e)}</div>`;
+  }
+}
+
+function loginShell(inner){
+  return `<div class="login"><div class="login-card"><div class="logo">Minster M<span class="plus">+</span>re</div>${inner}</div></div>`;
+}
+function loginForm(){
+  return `<h1>Committee login</h1><p>Enter your email and we'll send you a link to log in. No password needed.</p>
+    <div class="f"><label for="lg-email">Email</label><input type="email" id="lg-email" autocomplete="email"></div>
+    <button class="btn btn-coral" id="sendLink" style="width:100%;margin-top:14px;">Email me a login link</button>`;
+}
+function go(v, s){ view = v; sub = s || null; editing = null; render(); window.scrollTo(0,0); }
+
+/* ---------------- EVENTS ---------------- */
+document.addEventListener('click', async e=>{
+  const t = e.target.closest('button'); if(!t) return;
+  try{
+    if(t.id==='sendLink'){
+      const email = $('#lg-email').value.trim(); if(!email) return toast('Enter your email.', true);
+      t.disabled = true;
+      const {error} = await sb.auth.signInWithOtp({email, options:{emailRedirectTo: location.origin + '/admin'}});
+      if(error){ t.disabled=false; return toast(error.message, true); }
+      $('#root').innerHTML = loginShell(`<h1>Check your email</h1><p>We've sent a login link to <b>${esc(email)}</b>. Open it on this device.</p><p class="muted">Only committee members on the admin list can get in.</p>`);
+      return;
+    }
+    if(t.id==='signOut'){ await sb.auth.signOut(); user=null; render(); return; }
+    if(t.dataset.view){ go(t.dataset.view); return; }
+    if(t.dataset.sub){ sub = t.dataset.sub; editing=null; render(); return; }
+    if(t.dataset.back){ go(t.dataset.back); return; }
+    if(t.hasAttribute('data-new')){ editing='new'; render(); return; }
+    if(t.dataset.edit){ editing=t.dataset.edit; await render(); window.scrollTo(0,0); return; }
+    if(t.hasAttribute('data-cancel')){ editing=null; render(); return; }
+    if(t.dataset.save){
+      const key = t.dataset.save, tb = TABLES[key];
+      t.disabled = true;
+      let rows = null;
+      if(editing!=='new') rows = check(await sb.from(key).select('*').eq('id',editing));
+      const values = await readForm(tb, rows && rows[0]).catch(err=>{ t.disabled=false; toast(err.message,true); throw err; });
+      if(editing==='new') check(await sb.from(key).insert(values));
+      else check(await sb.from(key).update(values).eq('id',editing));
+      toast('Saved.'); editing=null; render(); return;
+    }
+    if(t.dataset.del){
+      const [table,id] = t.dataset.del.split(':');
+      if(!confirm('Delete this? It can\'t be undone.')) return;
+      const tb = TABLES[table];
+      if(tb && tb.onDelete){ const r = check(await sb.from(table).select('*').eq('id',id)); if(r[0]) await tb.onDelete(r[0]); }
+      check(await sb.from(table).delete().eq('id',id));
+      toast('Deleted.'); render(); return;
+    }
+    if(t.dataset.idea){
+      const [id,status] = t.dataset.idea.split(':');
+      check(await sb.from('ideas').update({status}).eq('id',id));
+      toast(status==='approved'?'Approved — it\'s now live for voting.':'Updated.'); render(); return;
+    }
+    if(t.dataset.saveIdea){
+      const title = $('#fld-title').value.trim(); if(!title) return toast('Title is required.', true);
+      check(await sb.from('ideas').update({title, blurb:$('#fld-blurb').value.trim()||null, cost_pence:toPence($('#fld-cost_pence').value)||null, who:$('#fld-who').value}).eq('id',t.dataset.saveIdea));
+      toast('Saved.'); editing=null; render(); return;
+    }
+    if(t.dataset.attendees){ go('attendees', t.dataset.attendees); return; }
+    if(t.dataset.approveSupporter){ check(await sb.from('supporters').update({approved:true}).eq('id',t.dataset.approveSupporter)); toast('Approved.'); render(); return; }
+    if(t.dataset.handled){ const [id,v]=t.dataset.handled.split(':'); check(await sb.from('volunteers').update({handled:v==='true'}).eq('id',id)); render(); return; }
+    if(t.id==='addFund'){
+      const amount = toPence($('#fd-amt').value), label = $('#fd-label').value.trim();
+      if(!amount) return toast('Enter an amount.', true);
+      if(!label) return toast('Say what the money is from.', true);
+      check(await sb.from('funds').insert({amount_pence:amount, label, received_on:$('#fd-date').value || undefined, source:'manual', created_by:user.email}));
+      toast(`${money(amount)} added to the totaliser.`); render(); return;
+    }
+    if(t.id==='saveTarget'){
+      const target = toPence($('#st-target').value); if(!target) return toast('Enter a target.', true);
+      check(await sb.from('settings').update({year_label:$('#st-year').value.trim()||'2026/27', target_pence:target, updated_at:new Date().toISOString()}).eq('id',1));
+      toast('Target saved.'); render(); return;
+    }
+    if(t.id==='saveSettings'){
+      check(await sb.from('settings').update({
+        fifty_term_label:$('#st-fifty').value.trim()||null, easyfundraising_url:$('#st-easy').value.trim()||null,
+        coop_url:$('#st-coop').value.trim()||null, updated_at:new Date().toISOString(),
+      }).eq('id',1));
+      toast('Settings saved.'); return;
+    }
+    if(t.id==='addAdmin'){
+      const email = $('#ad-email').value.trim().toLowerCase();
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return toast('Enter a valid email.', true);
+      check(await sb.from('admins').insert({email}));
+      toast(`${email} can now log in.`); render(); return;
+    }
+    if(t.dataset.delAdmin){
+      if(!confirm(`Remove ${t.dataset.delAdmin} as an admin?`)) return;
+      check(await sb.from('admins').delete().eq('email',t.dataset.delAdmin)); toast('Removed.'); render(); return;
+    }
+    if(t.id==='drawFifty'){
+      const {entries,total,term} = window._fifty;
+      if(total < 3) return toast('You need at least three numbers to draw.', true);
+      const picks = new Set(); const buf = new Uint32Array(1);
+      while(picks.size < 3){ crypto.getRandomValues(buf); picks.add(1 + (buf[0] % total)); }
+      const each = Math.floor(total*1000/2/3);
+      $('#drawResult').innerHTML = [...picks].map((n,i)=>{ const w = entries.find(e=>n>=e.from && n<=e.to);
+        return `<div style="margin-bottom:10px;"><span class="winner">#${n}</span> — <b>${esc(w.name||'')}</b> <a href="mailto:${esc(w.email)}?subject=${encodeURIComponent('You won the Minster More 50:50 Club — '+term)}">${esc(w.email)}</a> <span class="muted">· ${money(each)}</span></div>`; }).join('')
+        + `<p class="muted">Drawn ${new Date().toLocaleString('en-GB')}. Note the winners down — this isn't saved.</p>`;
+      return;
+    }
+    if(t.id==='exportFunds'){
+      const rows = check(await sb.from('funds').select('*').order('received_on'));
+      csv([['Date','From','Source','Gift Aid','Amount (£)'], ...rows.map(f=>[f.received_on, f.label, f.source, f.gift_aid_id?'Yes':'', (f.amount_pence/100).toFixed(2)])], 'minster-more-totaliser.csv'); return;
+    }
+    if(t.id==='exportOrders'){
+      csv([['Date','Name','Email','Items','Gift Aid','Total (£)'], ...window._orders.map(o=>[o.paid_at, o.name, o.email, (o.items||[]).map(i=>`${i.label} x${i.qty}`).join('; '), o.gift_aid?'Yes':'', (o.total_pence/100).toFixed(2)])], 'minster-more-payments.csv'); return;
+    }
+    if(t.id==='exportAttendees'){
+      const {ev, list} = window._attendees;
+      csv([['Name','Email','Type','Qty'], ...list.map(l=>[l.name, l.email, l.type, l.qty])], `${safeName(ev.title)}-attendees.csv`); return;
+    }
+    if(t.id==='exportFifty'){
+      const {term, entries} = window._fifty;
+      csv([['Numbers','Name','Email'], ...entries.map(e=>[e.from===e.to?e.from:`${e.from}-${e.to}`, e.name, e.email])], `50-50-${safeName(term)}.csv`); return;
+    }
+    if(t.id==='exportGA'){
+      csv([['Title','First name','Last name','House name or number','Postcode','Aggregated donations','Sponsored event','Donation date (DD/MM/YY)','Amount'],
+        ...window._giftaid.map(r=>{ const g=r.gift_aid_declarations||{}; const parts=String(g.full_name||'').trim().split(/\s+/); const last=parts.length>1?parts.pop():''; const [y,m,dd]=r.received_on.split('-');
+          return ['', parts.join(' '), last, g.house, g.postcode, '', '', `${dd}/${m}/${y.slice(2)}`, (r.amount_pence/100).toFixed(2)]; })], 'gift-aid-claim.csv');
+      return;
+    }
+  }catch(err){ console.error(err); }
+});
+document.addEventListener('keydown', e=>{ if(e.key==='Enter' && e.target.id==='lg-email') $('#sendLink').click(); });
+
+/* ---------------- START ---------------- */
+(async function start(){
+  if(!sb){ render(); return; }
+  const {data:{session}} = await sb.auth.getSession();
+  user = session?.user || null;
+  if(user){
+    const {data:isAdmin} = await sb.rpc('is_admin');
+    if(!isAdmin){
+      $('#root').innerHTML = loginShell(`<h1>Not on the admin list</h1><p><b>${esc(user.email)}</b> isn't set up as an admin. Ask an existing admin to add you.</p><button class="btn btn-ghost" id="signOut">Sign out</button>`);
+      return;
+    }
+  }
+  render();
+  sb.auth.onAuthStateChange((evt, s)=>{ if(evt==='SIGNED_IN' && !user){ location.reload(); } if(evt==='SIGNED_OUT'){ user=null; render(); } });
+})();
+</script>
+</body>
+</html>

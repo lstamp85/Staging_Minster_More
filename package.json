@@ -1,8 +1,18 @@
 {
-  "name": "minster-more-staging",
+  "name": "minster-more",
   "version": "1.0.0",
   "private": true,
+  "description": "Minster More — fundraising site for The Minster School, Southwell",
+  "main": "server.js",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "start": "npx serve -s . -l $PORT"
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.47.10",
+    "express": "^4.21.2",
+    "stripe": "^17.5.0"
   }
 }
