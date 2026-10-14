@@ -402,16 +402,24 @@ app.post('/api/checkout', rateLimit(10), async (req, res) => {
   const onlyDonation = items.every(i => i.kind === 'donation');
   const base = origin(req);
   try {
-    const session = await stripe.checkout.sessions.create({
+    const params = {
       mode: hasMembership ? 'subscription' : 'payment',
-      payment_method_types: ['card'], // includes Apple Pay and Google Pay
       line_items: lineItems,
       client_reference_id: order.id,
       metadata: { order_id: order.id },
       success_url: `${base}/?paid=1#/thanks`,
       cancel_url: `${base}/#/${onlyDonation ? 'give' : 'basket'}`,
       ...(hasMembership ? {} : { submit_type: onlyDonation ? 'donate' : 'pay' }),
-    });
+    };
+    // Use the payment methods switched on in the Stripe dashboard (cards,
+    // Apple Pay, Google Pay…). If none are available yet, fall back to cards.
+    let session;
+    try {
+      session = await stripe.checkout.sessions.create(params);
+    } catch (err) {
+      if (err.type !== 'StripeInvalidRequestError' || !/payment method/i.test(err.message)) throw err;
+      session = await stripe.checkout.sessions.create({ ...params, payment_method_types: ['card'] });
+    }
     await db.from('orders').update({ stripe_session: session.id }).eq('id', order.id);
     res.json({ url: session.url });
   } catch (err) {
