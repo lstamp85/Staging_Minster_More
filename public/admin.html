@@ -171,7 +171,15 @@ const TABLES = {
     cols:[['Priority', r=>`<b>${esc(r.title)}</b>`], ['Stage', r=>`<span class="chip cyan">${esc(r.status)}</span>`], ['Raised', r=>`${money(r.raised_pence)} <span class="muted">of ${money(r.goal_pence)}</span>`, 'r']],
   },
   events: {
-    title:'Events', single:'event', order:[['starts_at',false]],
+    title:'Events', single:'event', order:[['starts_at',true]],
+    // Upcoming events first (soonest at the top), then past events (most recent first)
+    sortRows: rows => {
+      const now = Date.now();
+      const up = rows.filter(r => new Date(r.starts_at) >= now - 12*3600_000);
+      const past = rows.filter(r => new Date(r.starts_at) < now - 12*3600_000).reverse();
+      return [...up, ...past];
+    },
+    rowStyle: r => new Date(r.starts_at) < Date.now() - 12*3600_000 ? 'opacity:.55' : '',
     intro:'Free events take reservations; paid events sell tickets through Stripe. Unpublished events are hidden.',
     fields:[
       {k:'title', label:'Event name', type:'text', req:true, full:true},
@@ -188,7 +196,7 @@ const TABLES = {
       {k:'equipment', label:'Equipment needed', type:'textarea', full:true, hint:'e.g. 2 gazebos, float £100, card reader, extension leads'},
       {k:'planning_notes', label:'Other notes', type:'textarea', full:true},
     ],
-    cols:[['Event', r=>`<b>${esc(r.title)}</b><br><span class="muted">${d(r.starts_at,true)}</span>`], ['Price', r=>r.price_pence?money(r.price_pence):'Free'], ['', r=>`${r.published?'':'<span class="chip">Hidden</span> '}${r.sells_alcohol?`<span class="chip ${r.licence_status==='Approved'?'ok':'coral'}">Bar${r.licence_status?` · ${esc(r.licence_status)}`:''}</span>`:''}`]],
+    cols:[['Event', r=>`<b>${esc(r.title)}</b><br><span class="muted">${d(r.starts_at,true)}</span>`], ['Price', r=>r.price_pence?money(r.price_pence):'Free'], ['', r=>`${new Date(r.starts_at) < Date.now() - 12*3600_000 ? '<span class="chip">Past</span> ' : ''}${r.published?'':'<span class="chip">Hidden</span> '}${r.sells_alcohol?`<span class="chip ${r.licence_status==='Approved'?'ok':'coral'}">Bar${r.licence_status?` · ${esc(r.licence_status)}`:''}</span>`:''}`]],
     extra: r=>`<button class="btn btn-ghost btn-sm" data-attendees="${r.id}">Attendees</button>`,
   },
   news: {
@@ -288,7 +296,8 @@ async function tableView(key){
   const t = TABLES[key];
   let q = sb.from(key).select('*');
   t.order.forEach(([c,asc])=> q = q.order(c, {ascending:asc, nullsFirst:false}));
-  const rows = check(await q);
+  let rows = check(await q);
+  if(t.sortRows) rows = t.sortRows(rows);
   const row = editing && editing !== 'new' ? rows.find(r=>r.id===editing) : null;
   return `
     <div class="head"><div><h1>${t.title}</h1><p>${t.intro}</p></div>
@@ -301,7 +310,7 @@ async function tableView(key){
       </div>` : ''}
     <div class="card table-wrap">
       ${rows.length ? `<table><thead><tr>${t.cols.map(c=>`<th class="${c[2]||''}">${c[0]}</th>`).join('')}<th></th></tr></thead><tbody>
-        ${rows.map(r=>`<tr>${t.cols.map(c=>`<td class="${c[2]||''}">${c[1](r)}</td>`).join('')}
+        ${rows.map(r=>`<tr style="${t.rowStyle?t.rowStyle(r):''}">${t.cols.map(c=>`<td class="${c[2]||''}">${c[1](r)}</td>`).join('')}
           <td><div class="actions">${t.extra?t.extra(r):''}<button class="btn btn-ghost btn-sm" data-edit="${r.id}">Edit</button><button class="btn-danger" data-del="${key}:${r.id}">Delete</button></div></td></tr>`).join('')}
       </tbody></table>` : `<div class="empty">Nothing here yet.</div>`}
     </div>`;
