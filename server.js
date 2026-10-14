@@ -21,7 +21,11 @@ const {
 const db = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
   ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } })
   : null;
-const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY) : null;
+const STRIPE_KEY = (STRIPE_SECRET_KEY || '').trim().replace(/^["']|["']$/g, '');
+const stripe = STRIPE_KEY ? new Stripe(STRIPE_KEY) : null;
+if (STRIPE_KEY && !/^(sk|rk)_(live|test)_/.test(STRIPE_KEY)) {
+  console.warn('⚠ STRIPE_SECRET_KEY does not look like a secret key (should start sk_live_ or sk_test_).');
+}
 
 const app = express();
 app.set('trust proxy', 1);
@@ -410,8 +414,12 @@ app.post('/api/checkout', rateLimit(10), async (req, res) => {
     await db.from('orders').update({ stripe_session: session.id }).eq('id', order.id);
     res.json({ url: session.url });
   } catch (err) {
-    console.error('Stripe checkout failed:', err.message);
-    res.status(502).json({ error: 'Could not reach the payment provider — please try again.' });
+    console.error('Stripe checkout failed:', err.type, err.code, err.message);
+    let msg = 'Could not reach the payment provider — please try again.';
+    if (err.type === 'StripeAuthenticationError') msg = 'Payments are not set up correctly (the Stripe secret key was rejected). Please let finance@minstermore.org.uk know.';
+    else if (err.type === 'StripePermissionError') msg = 'Payments are not set up correctly (the Stripe key does not have permission). Please let finance@minstermore.org.uk know.';
+    else if (err.type === 'StripeInvalidRequestError') msg = `Stripe could not start checkout: ${err.message}`;
+    res.status(502).json({ error: msg });
   }
 });
 
