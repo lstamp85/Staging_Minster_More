@@ -180,9 +180,15 @@ const TABLES = {
       {k:'location', label:'Location', type:'text'},
       {k:'price_pence', label:'Ticket price', type:'money', hint:'Leave at 0 for a free event'},
       {k:'capacity', label:'Capacity', type:'number', hint:'Optional — sales stop when full'},
-      {k:'published', label:'Show on the website', type:'checkbox', def:true},
+      {k:'published', label:'Show on the website', type:'checkbox', def:true, hint:'Untick while you are still planning — it stays here for the committee.'},
+      {type:'section', label:'Planning notes', hint:'Committee only. None of this appears on the website.'},
+      {k:'sells_alcohol', label:'Selling alcohol', type:'checkbox', def:false},
+      {k:'licence_status', label:'Alcohol licence (TEN)', type:'select', options:['','Not needed','To apply for','Applied','Approved'], labels:{'':'—','Not needed':'Not needed','To apply for':'To apply for','Applied':'Applied','Approved':'Approved'}, hint:'Selling alcohol needs a Temporary Event Notice from Newark &amp; Sherwood council, at least 10 working days before.'},
+      {k:'volunteers', label:'Volunteers', type:'textarea', full:true, hint:'One per line, e.g. Sarah – bar 6–8pm'},
+      {k:'equipment', label:'Equipment needed', type:'textarea', full:true, hint:'e.g. 2 gazebos, float £100, card reader, extension leads'},
+      {k:'planning_notes', label:'Other notes', type:'textarea', full:true},
     ],
-    cols:[['Event', r=>`<b>${esc(r.title)}</b><br><span class="muted">${d(r.starts_at,true)}</span>`], ['Price', r=>r.price_pence?money(r.price_pence):'Free'], ['', r=>r.published?'':'<span class="chip">Hidden</span>']],
+    cols:[['Event', r=>`<b>${esc(r.title)}</b><br><span class="muted">${d(r.starts_at,true)}</span>`], ['Price', r=>r.price_pence?money(r.price_pence):'Free'], ['', r=>`${r.published?'':'<span class="chip">Hidden</span> '}${r.sells_alcohol?`<span class="chip ${r.licence_status==='Approved'?'ok':'coral'}">Bar${r.licence_status?` · ${esc(r.licence_status)}`:''}</span>`:''}`]],
     extra: r=>`<button class="btn btn-ghost btn-sm" data-attendees="${r.id}">Attendees</button>`,
   },
   news: {
@@ -235,13 +241,14 @@ const TABLES = {
 };
 
 function fieldHTML(f, row){
+  if(f.type==='section') return `<div class="full" style="border-top:1px solid var(--hairline);padding-top:18px;margin-top:6px;"><h3 style="font-size:16px;">${f.label}</h3>${f.hint?`<div class="muted" style="margin-top:4px;">${f.hint}</div>`:''}</div>`;
   let v = row ? row[f.k] : (typeof f.def === 'function' ? f.def() : f.def);
   const id = 'fld-'+f.k;
   let input;
   if(f.type==='textarea') input = `<textarea id="${id}">${esc(v)}</textarea>`;
   else if(f.type==='money') input = `<div class="money"><span>£</span><input type="text" inputmode="decimal" id="${id}" value="${v!=null?(v/100):''}" placeholder="0"></div>`;
   else if(f.type==='select') input = `<select id="${id}">${f.options.map(o=>`<option value="${esc(o)}" ${v===o||(!v&&!o)?'selected':''}>${esc(f.labels?f.labels[o]:(o||'—'))}</option>`).join('')}</select>`;
-  else if(f.type==='checkbox') return `<div class="f ${f.full?'full':''}"><label class="check" style="margin-top:28px;"><input type="checkbox" id="${id}" ${v?'checked':''}> ${f.label}</label></div>`;
+  else if(f.type==='checkbox') return `<div class="f ${f.full?'full':''}"><label class="check" style="margin-top:28px;"><input type="checkbox" id="${id}" ${v?'checked':''}> ${f.label}</label>${f.hint?`<div class="hint">${f.hint}</div>`:''}</div>`;
   else if(f.type==='datetime') input = `<input type="datetime-local" id="${id}" value="${localDT(v)}">`;
   else if(f.type==='date') input = `<input type="date" id="${id}" value="${esc(v||'')}">`;
   else if(f.type==='number') input = `<input type="number" id="${id}" value="${v??''}">`;
@@ -253,6 +260,7 @@ function fieldHTML(f, row){
 async function readForm(t, row){
   const out = {};
   for(const f of t.fields){
+    if(f.type==='section') continue;
     const el = document.getElementById('fld-'+f.k);
     if(f.type==='checkbox') out[f.k] = el.checked;
     else if(f.type==='money') out[f.k] = el.value.trim()==='' ? 0 : toPence(el.value);
@@ -403,6 +411,47 @@ async function attendeesView(id){
     </div>`;
 }
 
+async function planningView(){
+  const since = new Date(Date.now() - 24*3600_000).toISOString();
+  const res = await sb.from('events').select('*').gte('starts_at', since).order('starts_at');
+  if(res.error && /column|sells_alcohol|planning/i.test(res.error.message + (res.error.details||''))){
+    return `<div class="head"><div><h1>Event planning</h1></div></div><div class="notice">One-off setup needed: in Supabase, open <b>SQL Editor → New query</b>, paste the contents of <code>supabase/migrations/2026-10-14-event-planning.sql</code> from GitHub and click <b>Run</b>. Then refresh this page.</div>`;
+  }
+  const rows = check(res);
+  const lines = t => esc(t||'').split('\n').filter(Boolean);
+  const until = iso => { const days = Math.ceil((new Date(iso) - Date.now())/86400000); return days<=0?'Today':days===1?'Tomorrow':`In ${days} days`; };
+  return `
+    <div class="head"><div><h1>Event planning</h1><p>Everything coming up, with the committee's notes. Nothing on this page is shown on the website.</p></div>
+      <button class="btn btn-coral" data-plan-new>Add an event</button></div>
+    ${rows.length ? rows.map(e=>{
+      const tenDays = (new Date(e.starts_at) - Date.now())/86400000;
+      const licenceWarn = e.sells_alcohol && !['Applied','Approved'].includes(e.licence_status||'') && tenDays < 21;
+      const vols = lines(e.volunteers);
+      return `
+      <div class="card">
+        <div class="head" style="margin-bottom:12px;align-items:flex-start;">
+          <div>
+            <h2 style="margin:0 0 4px;">${esc(e.title)}</h2>
+            <div class="muted">${d(e.starts_at,true)}${e.location?` · ${esc(e.location)}`:''} · <b>${until(e.starts_at)}</b></div>
+          </div>
+          <div class="actions">
+            ${e.published?'<span class="chip cyan">On website</span>':'<span class="chip">Not on website</span>'}
+            ${e.sells_alcohol?`<span class="chip ${e.licence_status==='Approved'?'ok':'coral'}">Bar · ${esc(e.licence_status||'licence not set')}</span>`:'<span class="chip">No alcohol</span>'}
+            <button class="btn btn-ghost btn-sm" data-plan-edit="${e.id}">Edit</button>
+          </div>
+        </div>
+        ${licenceWarn?`<div class="notice" style="margin-bottom:14px;"><b>Alcohol licence:</b> apply for a Temporary Event Notice with Newark &amp; Sherwood council now. It must be in at least 10 working days before the event.</div>`:''}
+        <div class="form" style="gap:18px;">
+          <div><div class="l muted" style="font-weight:700;text-transform:uppercase;font-size:12px;letter-spacing:.06em;margin-bottom:6px;">Volunteers (${vols.length})</div>
+            ${vols.length?vols.map(v=>`<div style="padding:3px 0;">${v}</div>`).join(''):'<div class="muted">None yet</div>'}</div>
+          <div><div class="l muted" style="font-weight:700;text-transform:uppercase;font-size:12px;letter-spacing:.06em;margin-bottom:6px;">Equipment</div>
+            ${lines(e.equipment).length?lines(e.equipment).map(v=>`<div style="padding:3px 0;">${v}</div>`).join(''):'<div class="muted">Nothing noted</div>'}</div>
+          ${e.planning_notes?`<div class="full"><div class="l muted" style="font-weight:700;text-transform:uppercase;font-size:12px;letter-spacing:.06em;margin-bottom:6px;">Notes</div><div style="white-space:pre-wrap;line-height:1.5;">${esc(e.planning_notes)}</div></div>`:''}
+        </div>
+      </div>`;
+    }).join('') : `<div class="empty">No upcoming events. Add one to start planning.</div>`}`;
+}
+
 async function inboxView(){
   const rows = check(await sb.from('volunteers').select('*').order('handled').order('created_at',{ascending:false}));
   return `
@@ -509,7 +558,7 @@ async function adminsView(){
 
 /* ---------------- SHELL ---------------- */
 const NAV = [
-  ['dashboard','Totaliser'], ['ideas','Suggestions'], ['pots','Funding priorities'], ['events','Events'],
+  ['dashboard','Totaliser'], ['ideas','Suggestions'], ['pots','Funding priorities'], ['events','Events'], ['planning','Event planning'],
   ['payments','Payments'], ['fifty','50:50 Club'], ['giftaid','Gift Aid'],
   ['documents','Documents'], ['news','News'], ['committee','Committee'], ['supporters','Supporters wall'],
   ['inbox','Volunteers'], ['settings','Settings'], ['admins','Admins'],
@@ -544,6 +593,7 @@ async function render(){
     if(view==='dashboard') html = await dashboardView();
     else if(view==='ideas') html = await ideasView();
     else if(view==='attendees') html = await attendeesView(sub);
+    else if(view==='planning') html = await planningView();
     else if(view==='inbox') html = await inboxView();
     else if(view==='payments') html = await paymentsView();
     else if(view==='fifty') html = await fiftyView();
@@ -601,7 +651,7 @@ document.addEventListener('click', async e=>{
     if(t.dataset.back){ go(t.dataset.back); return; }
     if(t.hasAttribute('data-new')){ editing='new'; render(); return; }
     if(t.dataset.edit){ editing=t.dataset.edit; await render(); window.scrollTo(0,0); return; }
-    if(t.hasAttribute('data-cancel')){ editing=null; render(); return; }
+    if(t.hasAttribute('data-cancel')){ editing=null; if(window._returnTo){ const r = window._returnTo; window._returnTo = null; go(r); } else render(); return; }
     if(t.dataset.save){
       const key = t.dataset.save, tb = TABLES[key];
       t.disabled = true;
@@ -610,7 +660,9 @@ document.addEventListener('click', async e=>{
       const values = await readForm(tb, rows && rows[0]).catch(err=>{ t.disabled=false; toast(err.message,true); throw err; });
       if(editing==='new') check(await sb.from(key).insert(values));
       else check(await sb.from(key).update(values).eq('id',editing));
-      toast('Saved.'); editing=null; render(); return;
+      toast('Saved.'); editing=null;
+      if(window._returnTo){ const r = window._returnTo; window._returnTo = null; go(r); } else render();
+      return;
     }
     if(t.dataset.del){
       const [table,id] = t.dataset.del.split(':');
@@ -631,6 +683,8 @@ document.addEventListener('click', async e=>{
       toast('Saved.'); editing=null; render(); return;
     }
     if(t.dataset.attendees){ go('attendees', t.dataset.attendees); return; }
+    if(t.hasAttribute('data-plan-new')){ window._returnTo='planning'; view='events'; sub=null; editing='new'; await render(); window.scrollTo(0,0); return; }
+    if(t.dataset.planEdit){ window._returnTo='planning'; view='events'; sub=null; editing=t.dataset.planEdit; await render(); window.scrollTo(0,0); return; }
     if(t.dataset.approveSupporter){ check(await sb.from('supporters').update({approved:true}).eq('id',t.dataset.approveSupporter)); toast('Approved.'); render(); return; }
     if(t.dataset.handled){ const [id,v]=t.dataset.handled.split(':'); check(await sb.from('volunteers').update({handled:v==='true'}).eq('id',id)); render(); return; }
     if(t.id==='addFund'){

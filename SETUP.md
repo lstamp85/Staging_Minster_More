@@ -75,3 +75,9 @@ Go to `/admin`, enter `hello@minstermore.org.uk`, and click the link in the emai
 - **Gift Aid** declarations are collected at checkout. Gift Aid → Export gives a CSV laid out for HMRC's Charities Online claim sheet.
 - **New Future Makers** who give a name appear in Supporters wall as "Awaiting approval".
 - **Refunds and cancellations** are done in the Stripe dashboard. If you refund a donation, delete or correct its totaliser entry.
+
+## Database updates
+
+When a new feature needs extra database fields, the SQL is in `supabase/migrations/`. Paste each file into Supabase → SQL Editor → New query → Run. They're safe to run more than once.
+
+- `2026-10-14-event-planning.sql`: planning notes on events (alcohol, licence, volunteers, equipment).

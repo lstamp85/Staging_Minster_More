@@ -118,6 +118,12 @@ create table public.events (
   price_pence integer not null default 0,
   capacity    integer,
   published   boolean not null default true,
+  -- committee-only planning notes (not shown on the website)
+  sells_alcohol  boolean not null default false,
+  licence_status text,
+  volunteers     text,
+  equipment      text,
+  planning_notes text,
   created_at  timestamptz not null default now()
 );
 
