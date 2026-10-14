@@ -404,6 +404,7 @@ app.post('/api/checkout', rateLimit(10), async (req, res) => {
   try {
     const session = await stripe.checkout.sessions.create({
       mode: hasMembership ? 'subscription' : 'payment',
+      payment_method_types: ['card'], // includes Apple Pay and Google Pay
       line_items: lineItems,
       client_reference_id: order.id,
       metadata: { order_id: order.id },
