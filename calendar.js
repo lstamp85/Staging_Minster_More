@@ -58,7 +58,7 @@ function buildCalendar(events) {
   const now = icsDate(Date.now());
   const lines = [
     'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Minster More//Events//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
-    'X-WR-CALNAME:Minster More events', 'X-WR-TIMEZONE:Europe/London',
+    'X-WR-CALNAME:Minster More events', 'X-WR-CALDESC:Minster More committee events', 'X-WR-TIMEZONE:Europe/London',
     'REFRESH-INTERVAL;VALUE=DURATION:PT1H', 'X-PUBLISHED-TTL:PT1H',
   ];
   for (const e of events) {
@@ -75,6 +75,19 @@ function buildCalendar(events) {
       `DESCRIPTION:${icsText(planningSummary(e))}`,
       `URL:${SITE}/admin`,
       'END:VEVENT',
+    );
+  }
+  if (!events.length) {
+    // Outlook refuses to subscribe to a calendar with no events in it, so
+    // until the first event is added, show a one-day "connected" note.
+    const d = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/London' }).replace(/-/g, '');
+    const next = new Date(Date.parse(new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/London' })) + 86400_000).toISOString().slice(0, 10).replace(/-/g, '');
+    lines.push(
+      'BEGIN:VEVENT', 'UID:calendar-connected@minstermore.org.uk', `DTSTAMP:${now}`,
+      `DTSTART;VALUE=DATE:${d}`, `DTEND;VALUE=DATE:${next}`,
+      'SUMMARY:Minster More calendar connected',
+      `DESCRIPTION:${icsText('Events you add in the Minster More admin area will appear in this calendar. This note disappears once the first event is added.')}`,
+      'TRANSP:TRANSPARENT', 'END:VEVENT',
     );
   }
   lines.push('END:VCALENDAR');
