@@ -117,8 +117,12 @@ function calendarRoutes(app, db) {
     if (!email) return res.status(401).json({ error: 'Sign in again.' });
     const { data: admin } = await db.from('admins').select('email').ilike('email', email).maybeSingle();
     if (!admin) return res.status(403).json({ error: 'Not an admin.' });
+    // Use the address the admin page was opened on (normally www.), so the
+    // link never goes through the bare-domain redirect, which Outlook won't follow.
+    const host = req.get('x-forwarded-host') || req.get('host');
+    const base = host ? `https://${host}` : SITE;
     res.json({
-      url: `${SITE}/calendar/${calendarToken()}.ics`,
+      url: `${base}/calendar/${calendarToken()}.ics`,
       reminders: Boolean(process.env.RESEND_API_KEY),
       reminder_to: REMINDER_TO,
     });
