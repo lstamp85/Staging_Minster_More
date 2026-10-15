@@ -7,6 +7,7 @@ const path = require('path');
 const express = require('express');
 const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
+const { calendarRoutes, startReminders } = require('./calendar');
 
 const {
   PORT = 3000,
@@ -432,6 +433,9 @@ app.post('/api/checkout', rateLimit(10), async (req, res) => {
   }
 });
 
+// Committee calendar feed and admin calendar link
+calendarRoutes(app, db);
+
 // ---------------------------------------------------------------------
 // Static files
 // ---------------------------------------------------------------------
@@ -443,4 +447,5 @@ app.listen(PORT, () => {
   console.log(`Minster More running on port ${PORT}`);
   if (!db) console.warn('⚠ SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY not set — content will not load.');
   if (!stripe) console.warn('⚠ STRIPE_SECRET_KEY not set — payments are switched off.');
+  startReminders(db);
 });

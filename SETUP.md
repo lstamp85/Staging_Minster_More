@@ -81,3 +81,9 @@ Go to `/admin`, enter `hello@minstermore.org.uk`, and click the link in the emai
 When a new feature needs extra database fields, the SQL is in `supabase/migrations/`. Paste each file into Supabase → SQL Editor → New query → Run. They're safe to run more than once.
 
 - `2026-10-14-event-planning.sql`: planning notes on events (alcohol, licence, volunteers, equipment).
+- `2026-10-15-event-reminders.sql`: keeps track of reminder emails so each is sent once.
+
+## Event calendar and reminders
+
+- **Calendar:** admin → Event planning → "Add these events to Outlook" gives a private subscription link. Subscribe to it once from the hello@ Outlook calendar.
+- **Reminder emails** go to hello@minstermore.org.uk 14, 7 and 2 days before each event. They need a Railway variable `RESEND_API_KEY` (a Resend API key with sending access; the same key used for Supabase emails is fine). Optional: `REMINDER_EMAIL` to send them somewhere else.

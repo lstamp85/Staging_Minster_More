@@ -214,6 +214,13 @@ create table public.volunteers (
   created_at  timestamptz not null default now()
 );
 
+create table public.event_reminders (
+  event_id uuid not null references public.events(id) on delete cascade,
+  days     integer not null,
+  sent_at  timestamptz not null default now(),
+  primary key (event_id, days)
+);
+
 -- ---------------------------------------------------------------------
 -- Security: the public site reads through the server (service key), so
 -- anonymous visitors get no direct access. Admins get full access.
@@ -224,7 +231,7 @@ begin
   foreach t in array array[
     'admins','settings','pots','gift_aid_declarations','funds','ideas','votes',
     'events','reservations','orders','order_items','news','committee',
-    'documents','supporters','volunteers'
+    'documents','supporters','volunteers','event_reminders'
   ] loop
     execute format('alter table public.%I enable row level security', t);
     execute format(

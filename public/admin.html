@@ -427,11 +427,30 @@ async function planningView(){
     return `<div class="head"><div><h1>Event planning</h1></div></div><div class="notice">One-off setup needed: in Supabase, open <b>SQL Editor → New query</b>, paste the contents of <code>supabase/migrations/2026-10-14-event-planning.sql</code> from GitHub and click <b>Run</b>. Then refresh this page.</div>`;
   }
   const rows = check(res);
+  let cal = null;
+  try{
+    const {data:{session}} = await sb.auth.getSession();
+    const r = await fetch('/api/admin/calendar', {headers:{Authorization:'Bearer '+(session?.access_token||'')}});
+    if(r.ok) cal = await r.json();
+  }catch(e){}
   const lines = t => esc(t||'').split('\n').filter(Boolean);
-  const until = iso => { const days = Math.ceil((new Date(iso) - Date.now())/86400000); return days<=0?'Today':days===1?'Tomorrow':`In ${days} days`; };
+  const ymd = t => new Date(t).toLocaleDateString('en-CA', {timeZone:'Europe/London'});
+  const until = iso => { const days = Math.round((Date.parse(ymd(iso)) - Date.parse(ymd(Date.now())))/86400000); return days<=0?'Today':days===1?'Tomorrow':`In ${days} days`; };
   return `
     <div class="head"><div><h1>Event planning</h1><p>Everything coming up, with the committee's notes. Nothing on this page is shown on the website.</p></div>
       <button class="btn btn-coral" data-plan-new>Add an event</button></div>
+    ${cal ? `
+    <details class="card" style="padding:16px 22px;">
+      <summary style="cursor:pointer;font-weight:700;">Add these events to Outlook · ${cal.reminders ? `reminders on (${esc(cal.reminder_to)}, 14, 7 and 2 days before)` : 'reminder emails are off'}</summary>
+      <p class="muted" style="margin:12px 0 8px;">Subscribe once and every event here, including hidden ones and your notes, appears in the calendar and stays up to date.</p>
+      <div class="row"><div class="f" style="flex:1;"><input type="text" id="calUrl" readonly value="${esc(cal.url)}" onclick="this.select()"></div><button class="btn btn-ink" id="copyCal">Copy link</button></div>
+      <ol class="muted" style="margin:12px 0 0;padding-left:18px;line-height:1.7;">
+        <li><b>Outlook on the web</b> (signed in as hello@): Calendar → <b>Add calendar</b> → <b>Subscribe from web</b> → paste the link → name it “Minster More events” → Import.</li>
+        <li><b>Outlook desktop:</b> Calendar → Add calendar → <b>From Internet</b> → paste the link.</li>
+        <li>Changes can take a few hours to appear; Outlook decides how often it refreshes.</li>
+      </ol>
+      <p class="muted" style="margin:10px 0 0;">Keep this link private: anyone with it can see the events and notes.</p>
+    </details>` : ''}
     ${rows.length ? rows.map(e=>{
       const tenDays = (new Date(e.starts_at) - Date.now())/86400000;
       const licenceWarn = e.sells_alcohol && !['Applied','Approved'].includes(e.licence_status||'') && tenDays < 21;
@@ -692,6 +711,7 @@ document.addEventListener('click', async e=>{
       toast('Saved.'); editing=null; render(); return;
     }
     if(t.dataset.attendees){ go('attendees', t.dataset.attendees); return; }
+    if(t.id==='copyCal'){ const el=$('#calUrl'); el.select(); try{ await navigator.clipboard.writeText(el.value); toast('Calendar link copied.'); }catch(e){ document.execCommand('copy'); toast('Calendar link copied.'); } return; }
     if(t.hasAttribute('data-plan-new')){ window._returnTo='planning'; view='events'; sub=null; editing='new'; await render(); window.scrollTo(0,0); return; }
     if(t.dataset.planEdit){ window._returnTo='planning'; view='events'; sub=null; editing=t.dataset.planEdit; await render(); window.scrollTo(0,0); return; }
     if(t.dataset.approveSupporter){ check(await sb.from('supporters').update({approved:true}).eq('id',t.dataset.approveSupporter)); toast('Approved.'); render(); return; }
