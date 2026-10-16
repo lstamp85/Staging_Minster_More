@@ -132,14 +132,53 @@ function calendarRoutes(app, db) {
   });
 
   // The admin page asks for the feed address. Only signed-in admins get it.
-  app.get('/api/admin/calendar', async (req, res) => {
-    if (!db) return res.status(503).json({ error: 'Not connected' });
+  async function requireAdmin(req, res) {
+    if (!db) { res.status(503).json({ error: 'Not connected' }); return null; }
     const jwt = (req.get('authorization') || '').replace(/^Bearer\s+/i, '');
     const { data: u } = jwt ? await db.auth.getUser(jwt) : { data: null };
     const email = u?.user?.email?.toLowerCase();
-    if (!email) return res.status(401).json({ error: 'Sign in again.' });
+    if (!email) { res.status(401).json({ error: 'Sign in again.' }); return null; }
     const { data: admin } = await db.from('admins').select('email').ilike('email', email).maybeSingle();
-    if (!admin) return res.status(403).json({ error: 'Not an admin.' });
+    if (!admin) { res.status(403).json({ error: 'Not an admin.' }); return null; }
+    return email;
+  }
+
+  // Email set-up check and test send, from admin → Settings
+  app.get('/api/admin/email-status', async (req, res) => {
+    if (!(await requireAdmin(req, res))) return;
+    res.json({ key_set: Boolean(process.env.RESEND_API_KEY), to: REMINDER_TO, from: REMINDER_FROM });
+  });
+  app.post('/api/admin/test-email', async (req, res) => {
+    const who = await requireAdmin(req, res);
+    if (!who) return;
+    if (!process.env.RESEND_API_KEY) return res.status(400).json({ error: 'RESEND_API_KEY is not set in Railway, so the site cannot send emails yet.' });
+    const { layout, detailsPanel } = require('./emails');
+    try {
+      await sendEmail({
+        to: REMINDER_TO,
+        subject: 'Test email from the Minster More website',
+        html: layout({
+          preheader: 'Emails from the website are working.',
+          heading: 'Emails are working',
+          intro: 'This is a test from the Minster More website. If you can read this, volunteer thank-yous, notifications and event reminders will all be delivered.',
+          body: detailsPanel([['Sent to', REMINDER_TO], ['Sent from', REMINDER_FROM.replace(/</g, '&lt;')], ['Requested by', who]]),
+          signoff: 'Sent automatically by the Minster More website.',
+        }),
+        text: 'Emails from the Minster More website are working.',
+      });
+      res.json({ ok: true, to: REMINDER_TO });
+    } catch (err) {
+      // Make Resend's error readable
+      let msg = err.message || String(err);
+      try { const j = JSON.parse(msg.replace(/^Resend \d+:\s*/, '')); msg = j.message || msg; } catch (e) {}
+      if (/domain is not verified|verify a domain/i.test(msg)) msg += ' — finish verifying minstermore.org.uk in Resend → Domains.';
+      if (/api key is invalid|unauthori[sz]ed|401/i.test(msg)) msg += ' — check RESEND_API_KEY in Railway is the full key starting re_.';
+      res.status(502).json({ error: msg });
+    }
+  });
+
+  app.get('/api/admin/calendar', async (req, res) => {
+    if (!(await requireAdmin(req, res))) return;
     // Use the address the admin page was opened on (normally www.), so the
     // link never goes through the bare-domain redirect, which Outlook won't follow.
     const host = req.get('x-forwarded-host') || req.get('host');

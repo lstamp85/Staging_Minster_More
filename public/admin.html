@@ -645,10 +645,25 @@ async function giftAidView(){
     <p class="muted">Keep these records for six years. Remove a declaration if a donor tells you they no longer pay enough tax.</p>`;
 }
 
+async function adminFetch(url, opts={}){
+  const {data:{session}} = await sb.auth.getSession();
+  const r = await fetch(url, {...opts, headers:{...(opts.headers||{}), Authorization:'Bearer '+(session?.access_token||''), 'Content-Type':'application/json'}});
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.error || 'Request failed');
+  return j;
+}
 async function settingsView(){
   const s = check(await sb.from('settings').select('*').eq('id',1).single());
+  let em = null; try{ em = await adminFetch('/api/admin/email-status'); }catch(e){}
   return `
     <div class="head"><div><h1>Settings</h1><p>Links and switches for the Ways to give page. Leave a link blank to hide that card.</p></div></div>
+    <div class="card">
+      <h2>Emails</h2>
+      ${em ? `<p style="margin:0 0 14px;line-height:1.6;">${em.key_set
+        ? `<span class="chip ok">Email sending is set up</span> Reminders, notifications and volunteer thank-yous are sent from <b>${esc(em.from)}</b>. Committee emails go to <b>${esc(em.to)}</b>.`
+        : `<span class="chip coral">Not set up</span> Add <b>RESEND_API_KEY</b> in Railway → Variables to switch on emails.`}</p>` : ''}
+      <div class="row" style="align-items:center;"><button class="btn btn-ink" id="testEmail">Send a test email</button><span class="muted" id="testEmailResult"></span></div>
+    </div>
     <div class="card"><div class="form">
       <div class="f full"><label for="st-fifty">50:50 Club — current term</label><input type="text" id="st-fifty" value="${esc(s.fifty_term_label||'')}" placeholder="e.g. Autumn term 2026">
         <div class="hint">Leave blank to use the current term automatically (e.g. Autumn term 2026). Type <b>CLOSED</b> to stop entries before the draw.</div></div>
@@ -867,6 +882,12 @@ document.addEventListener('click', async e=>{
       const target = toPence($('#st-target').value); if(!target) return toast('Enter a target.', true);
       check(await sb.from('settings').update({year_label:$('#st-year').value.trim()||'2026/27', target_pence:target, updated_at:new Date().toISOString()}).eq('id',1));
       toast('Target saved.'); render(); return;
+    }
+    if(t.id==='testEmail'){
+      t.disabled = true; t.textContent = 'Sending…'; const out = $('#testEmailResult'); out.textContent = '';
+      try{ const r = await adminFetch('/api/admin/test-email', {method:'POST', body:'{}'}); out.innerHTML = `<b style="color:var(--ok)">Sent.</b> Check ${esc(r.to)} (and its spam folder) in a minute or two. It should also appear in Resend → Emails.`; }
+      catch(err){ out.innerHTML = `<b style="color:var(--bad)">Didn't send:</b> ${esc(err.message)}`; }
+      t.disabled = false; t.textContent = 'Send a test email'; return;
     }
     if(t.id==='saveSettings'){
       check(await sb.from('settings').update({
