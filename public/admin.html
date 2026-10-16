@@ -197,7 +197,7 @@ const TABLES = {
       {type:'section', label:'Planning notes', hint:'Committee only. None of this appears on the website.'},
       {k:'sells_alcohol', label:'Selling alcohol', type:'checkbox', def:false},
       {k:'licence_status', label:'Alcohol licence (TEN)', type:'select', options:['','Not needed','To apply for','Applied','Approved'], labels:{'':'—','Not needed':'Not needed','To apply for':'To apply for','Applied':'Applied','Approved':'Approved'}, hint:'Selling alcohol needs a Temporary Event Notice from Newark &amp; Sherwood council, at least 10 working days before.'},
-      {k:'volunteers', label:'Volunteers', type:'textarea', full:true, hint:'One per line, e.g. Sarah – bar 6–8pm'},
+      {k:'volunteers', label:'Volunteers (notes)', type:'textarea', full:true, hint:'Anyone helping who didn’t sign up online, one per line, e.g. Sarah – bar 6–8pm. Online sign-ups are managed on the Volunteer rota page.'},
       {k:'equipment', label:'Equipment needed', type:'textarea', full:true, hint:'e.g. 2 gazebos, float £100, card reader, extension leads'},
       {k:'planning_notes', label:'Other notes', type:'textarea', full:true},
     ],
@@ -451,6 +451,8 @@ async function planningView(){
     return `<div class="head"><div><h1>Event planning</h1></div></div><div class="notice">One-off setup needed: in Supabase, open <b>SQL Editor → New query</b>, paste the contents of <code>supabase/migrations/2026-10-14-event-planning.sql</code> from GitHub and click <b>Run</b>. Then refresh this page.</div>`;
   }
   const rows = check(res);
+  const rotaRes = await Promise.all([sb.from('volunteer_roles').select('*').order('sort').order('created_at'), sb.from('volunteer_signups').select('role_id,name')]);
+  const pRoles = rotaRes[0].error ? [] : rotaRes[0].data, pSign = rotaRes[1].data || [];
   let cal = null;
   try{
     const {data:{session}} = await sb.auth.getSession();
@@ -479,6 +481,7 @@ async function planningView(){
       const tenDays = (new Date(e.starts_at) - Date.now())/86400000;
       const licenceWarn = e.sells_alcohol && !['Applied','Approved'].includes(e.licence_status||'') && tenDays < 21;
       const vols = lines(e.volunteers);
+      const eRoles = pRoles.filter(r=>r.event_id===e.id);
       return `
       <div class="card">
         <div class="head" style="margin-bottom:12px;align-items:flex-start;">
@@ -495,14 +498,70 @@ async function planningView(){
         </div>
         ${licenceWarn?`<div class="notice" style="margin-bottom:14px;"><b>Alcohol licence:</b> apply for a Temporary Event Notice with Newark &amp; Sherwood council now. It must be in at least 10 working days before the event.</div>`:''}
         <div class="form" style="gap:18px;">
-          <div><div class="l muted" style="font-weight:700;text-transform:uppercase;font-size:12px;letter-spacing:.06em;margin-bottom:6px;">Volunteers (${vols.length})</div>
-            ${vols.length?vols.map(v=>`<div style="padding:3px 0;">${v}</div>`).join(''):'<div class="muted">None yet</div>'}</div>
+          <div><div class="l muted" style="font-weight:700;text-transform:uppercase;font-size:12px;letter-spacing:.06em;margin-bottom:6px;">Volunteers</div>
+            ${eRoles.map(r=>{ const ppl = pSign.filter(x=>x.role_id===r.id); return `<div style="padding:3px 0;"><b>${esc(r.title)}</b> <span class="chip ${ppl.length>=r.needed?'ok':'coral'}">${ppl.length}/${r.needed}</span>${ppl.length?`<span class="muted"> ${ppl.map(x=>esc(x.name)).join(', ')}</span>`:''}</div>`; }).join('')}
+            ${vols.map(v=>`<div style="padding:3px 0;">${v}</div>`).join('')}
+            ${!eRoles.length && !vols.length?'<div class="muted">None yet</div>':''}
+            <button class="link-btn" style="margin-top:6px;font-size:13px;" data-view="rota">Manage volunteer rota</button></div>
           <div><div class="l muted" style="font-weight:700;text-transform:uppercase;font-size:12px;letter-spacing:.06em;margin-bottom:6px;">Equipment</div>
             ${lines(e.equipment).length?lines(e.equipment).map(v=>`<div style="padding:3px 0;">${v}</div>`).join(''):'<div class="muted">Nothing noted</div>'}</div>
           ${e.planning_notes?`<div class="full"><div class="l muted" style="font-weight:700;text-transform:uppercase;font-size:12px;letter-spacing:.06em;margin-bottom:6px;">Notes</div><div style="white-space:pre-wrap;line-height:1.5;">${esc(e.planning_notes)}</div></div>`:''}
         </div>
       </div>`;
     }).join('') : `<div class="empty">No upcoming events. Add one to start planning.</div>`}`;
+}
+
+let rotaEdit = null;
+async function rotaView(){
+  const since = new Date(Date.now() - 24*3600_000).toISOString();
+  const evRes = await sb.from('events').select('id,title,starts_at,location,published').gte('starts_at', since).order('starts_at');
+  const evs = check(evRes);
+  const [rolesRes, signRes] = await Promise.all([
+    sb.from('volunteer_roles').select('*').order('sort').order('created_at'),
+    sb.from('volunteer_signups').select('*').order('created_at'),
+  ]);
+  if(rolesRes.error) throw rolesRes.error;
+  const roles = rolesRes.data, signups = signRes.data || [];
+  window._rota = {evs, roles, signups};
+  return `
+    <div class="head"><div><h1>Volunteer rota</h1><p>Add the jobs you need help with for each event. Published events with open roles show a “Help out” button on the website; volunteers' names are never shown publicly.</p></div></div>
+    ${evs.length ? evs.map(e=>{
+      const rs = roles.filter(r=>r.event_id===e.id);
+      const ss = signups.filter(x=>x.event_id===e.id);
+      const need = rs.reduce((n,r)=>n+r.needed,0), have = rs.reduce((n,r)=>n+Math.min(r.needed, ss.filter(x=>x.role_id===r.id).length),0);
+      const emails = [...new Set(ss.map(x=>x.email))];
+      return `
+      <div class="card">
+        <div class="head" style="margin-bottom:10px;align-items:flex-start;">
+          <div><h2 style="margin:0 0 4px;">${esc(e.title)}</h2><div class="muted">${d(e.starts_at,true)}${e.location?` · ${esc(e.location)}`:''}</div></div>
+          <div class="actions">
+            ${e.published?'':'<span class="chip">Not on website: sign-ups open once published</span>'}
+            ${rs.length?`<span class="chip ${have>=need?'ok':'coral'}">${have} of ${need} filled</span>`:''}
+            ${emails.length?`<a class="btn btn-ghost btn-sm" href="mailto:?bcc=${encodeURIComponent(emails.join(','))}&subject=${encodeURIComponent(e.title+' – volunteering')}">Email volunteers</a>`:''}
+          </div>
+        </div>
+        ${rs.length ? `<div class="table-wrap"><table><thead><tr><th style="width:34%">Role</th><th class="r" style="width:80px">Filled</th><th>Volunteers</th><th></th></tr></thead><tbody>
+          ${rs.map(r=>{ const people = ss.filter(x=>x.role_id===r.id);
+            if(rotaEdit===r.id) return `<tr><td colspan="4"><div class="form" style="grid-template-columns:2fr 100px;">
+              <div class="f"><label>Role</label><input type="text" id="re-title" value="${esc(r.title)}"></div>
+              <div class="f"><label>Needed</label><input type="number" id="re-needed" min="1" max="200" value="${r.needed}"></div>
+              <div class="f full"><label>What's involved <span class="muted">(shown to volunteers)</span></label><input type="text" id="re-desc" value="${esc(r.description||'')}"></div>
+            </div><div class="form-foot"><button class="btn btn-coral btn-sm" data-role-save="${r.id}">Save</button><button class="btn btn-ghost btn-sm" data-role-cancel>Cancel</button></div></td></tr>`;
+            return `<tr>
+              <td><b>${esc(r.title)}</b>${r.description?`<br><span class="muted">${esc(r.description)}</span>`:''}</td>
+              <td class="r"><span class="chip ${people.length>=r.needed?'ok':''}">${people.length}/${r.needed}</span></td>
+              <td>${people.length?people.map(x=>`<div style="margin-bottom:6px;"><b>${esc(x.name)}</b>${x.child_at_school?' <span class="chip cyan">Child at school</span>':''}<br><span class="muted"><a href="mailto:${esc(x.email)}">${esc(x.email)}</a>${x.phone?` · <a href="tel:${esc(x.phone.replace(/\s/g,''))}">${esc(x.phone)}</a>`:''}${x.note?` · “${esc(x.note)}”`:''}</span> <button class="btn-danger" style="padding:0 4px;" data-signup-del="${x.id}" title="Remove from rota">Remove</button></div>`).join(''):'<span class="muted">Nobody yet</span>'}</td>
+              <td><div class="actions"><button class="btn btn-ghost btn-sm" data-role-edit="${r.id}">Edit</button><button class="btn-danger" data-role-del="${r.id}">Delete</button></div></td>
+            </tr>`; }).join('')}
+        </tbody></table></div>` : `<p class="muted" style="margin:0 0 6px;">No roles yet.</p>`}
+        <div class="row" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--hairline);">
+          <div class="f" style="flex:2;"><label for="nr-title-${e.id}">Add a role</label><input type="text" id="nr-title-${e.id}" placeholder="e.g. Bar, 6–8pm"></div>
+          <div class="f" style="flex:3;"><label for="nr-desc-${e.id}">What's involved <span class="muted">(optional)</span></label><input type="text" id="nr-desc-${e.id}" placeholder="e.g. Serving drinks, over-18s only"></div>
+          <div class="f" style="max-width:90px;"><label for="nr-need-${e.id}">Needed</label><input type="number" id="nr-need-${e.id}" min="1" max="200" value="2"></div>
+          <button class="btn btn-ink" data-role-add="${e.id}">Add</button>
+        </div>
+      </div>`;
+    }).join('') : `<div class="empty">No upcoming events. Add an event first, then add the roles you need help with.</div>`}`;
 }
 
 async function inboxView(){
@@ -613,7 +672,7 @@ async function adminsView(){
 
 /* ---------------- SHELL ---------------- */
 const NAV = [
-  ['dashboard','Totaliser'], ['ideas','Suggestions'], ['pots','Funding priorities'], ['events','Events'], ['planning','Event planning'],
+  ['dashboard','Totaliser'], ['ideas','Suggestions'], ['pots','Funding priorities'], ['events','Events'], ['planning','Event planning'], ['rota','Volunteer rota'],
   ['payments','Payments'], ['fifty','50:50 Club'], ['giftaid','Gift Aid'],
   ['documents','Documents'], ['privatedocs','Committee files'], ['news','News'], ['committee','Committee'], ['supporters','Supporters wall'],
   ['inbox','Volunteers'], ['settings','Settings'], ['admins','Admins'],
@@ -649,6 +708,7 @@ async function render(){
     else if(view==='ideas') html = await ideasView();
     else if(view==='attendees') html = await attendeesView(sub);
     else if(view==='planning') html = await planningView();
+    else if(view==='rota') html = await rotaView();
     else if(view==='inbox') html = await inboxView();
     else if(view==='payments') html = await paymentsView();
     else if(view==='fifty') html = await fiftyView();
@@ -658,9 +718,9 @@ async function render(){
     else html = await tableView(view);
     $('#main').innerHTML = html;
   }catch(e){
-    const needsUpdate = /column .* does not exist|could not find .* column/i.test(e.message||'');
+    const needsUpdate = /column .* does not exist|could not find .* column|could not find the table|relation .* does not exist/i.test(e.message||'');
     $('#main').innerHTML = needsUpdate
-      ? `<div class="notice"><b>Database update needed.</b> In Supabase, open SQL Editor → New query, paste the latest file from <code>supabase/migrations/</code> on GitHub (<code>2026-10-16-site-tweaks.sql</code>) and click Run. Then refresh this page.</div>`
+      ? `<div class="notice"><b>Database update needed.</b> In Supabase, open SQL Editor → New query, paste any files from <code>supabase/migrations/</code> on GitHub you haven't run yet (the newest is <code>2026-10-16-volunteer-rota.sql</code>) and click Run. Then refresh this page.</div>`
       : `<div class="empty">Couldn't load this page: ${esc(e.message||e)}</div>`;
   }
 }
@@ -757,6 +817,33 @@ document.addEventListener('click', async e=>{
       toast('Saved.'); editing=null; render(); return;
     }
     if(t.dataset.attendees){ go('attendees', t.dataset.attendees); return; }
+    if(t.dataset.roleAdd){
+      const id = t.dataset.roleAdd, title = $('#nr-title-'+id).value.trim(), description = $('#nr-desc-'+id).value.trim() || null;
+      const needed = parseInt($('#nr-need-'+id).value, 10);
+      if(!title) return toast('Give the role a name, e.g. “Bar, 6–8pm”.', true);
+      if(!(needed >= 1)) return toast('How many people do you need?', true);
+      check(await sb.from('volunteer_roles').insert({event_id:id, title, description, needed}));
+      toast('Role added.'); render(); return;
+    }
+    if(t.dataset.roleEdit){ rotaEdit = t.dataset.roleEdit; render(); return; }
+    if(t.hasAttribute('data-role-cancel')){ rotaEdit = null; render(); return; }
+    if(t.dataset.roleSave){
+      const title = $('#re-title').value.trim(), needed = parseInt($('#re-needed').value,10);
+      if(!title || !(needed>=1)) return toast('Add a role name and how many people you need.', true);
+      check(await sb.from('volunteer_roles').update({title, needed, description:$('#re-desc').value.trim()||null}).eq('id', t.dataset.roleSave));
+      rotaEdit = null; toast('Saved.'); render(); return;
+    }
+    if(t.dataset.roleDel){
+      const n = (window._rota?.signups||[]).filter(x=>x.role_id===t.dataset.roleDel).length;
+      if(!confirm(n ? `Delete this role? ${n} volunteer${n===1?' is':'s are'} signed up for it and will be removed from the rota (they won't be emailed).` : 'Delete this role?')) return;
+      check(await sb.from('volunteer_roles').delete().eq('id', t.dataset.roleDel));
+      toast('Role deleted.'); render(); return;
+    }
+    if(t.dataset.signupDel){
+      if(!confirm('Remove this person from the rota? They won\'t be emailed.')) return;
+      check(await sb.from('volunteer_signups').delete().eq('id', t.dataset.signupDel));
+      toast('Removed.'); render(); return;
+    }
     if(t.dataset.signed){
       const w = window.open('', '_blank');
       const {data, error} = await sb.storage.from('private').createSignedUrl(t.dataset.signed, 300);

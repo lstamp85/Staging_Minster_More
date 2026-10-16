@@ -7,7 +7,7 @@ const path = require('path');
 const express = require('express');
 const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
-const { calendarRoutes, startReminders } = require('./calendar');
+const { calendarRoutes, startReminders, sendEmail, whenText, esc: escHtml } = require('./calendar');
 
 const {
   PORT = 3000,
@@ -253,6 +253,22 @@ app.get('/api/site', async (req, res) => {
       booking: e.booking || 'online', price_note: e.price_note || null,
       remaining: e.capacity && (e.booking || 'online') === 'online' ? Math.max(0, e.capacity - await ticketsTaken(e.id)) : null,
     })));
+    // Volunteer roles with how many places are left (never volunteer names)
+    if (evs.length) {
+      const ids = evs.map(e => e.id);
+      const [{ data: roles, error: rErr }, { data: sgn }] = await Promise.all([
+        db.from('volunteer_roles').select('id,event_id,title,description,needed,sort').in('event_id', ids).order('sort').order('created_at'),
+        db.from('volunteer_signups').select('role_id').in('event_id', ids),
+      ]);
+      if (!rErr) {
+        const filled = {};
+        for (const x of sgn || []) filled[x.role_id] = (filled[x.role_id] || 0) + 1;
+        for (const e of evs) {
+          e.roles = (roles || []).filter(r => r.event_id === e.id)
+            .map(r => ({ id: r.id, title: r.title, description: r.description, needed: r.needed, filled: Math.min(r.needed, filled[r.id] || 0) }));
+        }
+      }
+    }
     const potsOut = pots.data.map(p => ({
       id: p.id, title: p.title, blurb: p.blurb, goal_pence: p.goal_pence, raised_pence: p.raised_pence,
       status: p.status, sort: p.sort, funded_year: p.funded_year || null,
@@ -332,6 +348,59 @@ app.post('/api/volunteer', rateLimit(5), async (req, res) => {
   }
   if (error) return res.status(500).json({ error: 'Could not send that — please email team@minstermore.org.uk.' });
   res.json({ ok: true });
+});
+
+app.post('/api/volunteer-signup', rateLimit(8), async (req, res) => {
+  if (needDb(res)) return;
+  const roleIds = Array.isArray(req.body.role_ids) ? req.body.role_ids.map(x => str(x, 64)).filter(Boolean).slice(0, 10) : [];
+  const name = str(req.body.name, 120);
+  const email = str(req.body.email, 200).toLowerCase();
+  const phone = str(req.body.phone, 40);
+  const note = str(req.body.note, 500);
+  const child = req.body.child_at_school === true;
+  if (!roleIds.length) return res.status(400).json({ error: 'Choose at least one thing you can help with.' });
+  if (!name || !EMAIL_RE.test(email)) return res.status(400).json({ error: 'Add your name and a valid email.' });
+  if (phone && !/^[0-9+()\-\s]{7,}$/.test(phone)) return res.status(400).json({ error: 'That phone number doesn’t look right.' });
+  if (req.body.consent !== true) return res.status(400).json({ error: 'Please tick the box to say we can contact you about volunteering.' });
+
+  const { data: roles, error: rErr } = await db.from('volunteer_roles').select('*, events!inner(id,title,starts_at,location,published)').in('id', roleIds);
+  if (rErr || !roles || roles.length !== roleIds.length) return res.status(404).json({ error: 'One of those roles is no longer available. Please refresh the page.' });
+  const ev = roles[0].events;
+  if (roles.some(r => r.event_id !== ev.id) || !ev.published || new Date(ev.starts_at) < new Date()) {
+    return res.status(400).json({ error: 'That event is no longer taking volunteers.' });
+  }
+  const { data: existing } = await db.from('volunteer_signups').select('role_id,email').in('role_id', roleIds);
+  for (const r of roles) {
+    const taken = (existing || []).filter(x => x.role_id === r.id);
+    if (taken.some(x => x.email.toLowerCase() === email)) return res.status(409).json({ error: `You're already signed up for “${r.title}”.` });
+    if (taken.length >= r.needed) return res.status(409).json({ error: `Sorry, “${r.title}” is now full. Please choose another role.` });
+  }
+  const { error } = await db.from('volunteer_signups').insert(roles.map(r => ({
+    role_id: r.id, event_id: ev.id, name, email, phone: phone || null, child_at_school: child, note: note || null, consent: true,
+  })));
+  if (error && error.code === '23505') return res.status(409).json({ error: 'You’re already signed up for one of those.' });
+  if (error) return res.status(500).json({ error: 'Could not save your sign-up — please email team@minstermore.org.uk.' });
+  bustCache();
+  res.json({ ok: true });
+
+  // Emails (after responding, so a slow email never holds up the volunteer)
+  if (process.env.RESEND_API_KEY) {
+    const when = whenText(ev.starts_at) + (ev.location ? ` · ${ev.location}` : '');
+    const list = roles.map(r => `<li><b>${escHtml(r.title)}</b>${r.description ? ` – ${escHtml(r.description)}` : ''}</li>`).join('');
+    const wrap = body => `<div style="font:15px/1.5 Arial,sans-serif;color:#131f35;max-width:560px"><p style="font:800 20px Arial,sans-serif;margin:0 0 18px">minster more<span style="color:#e2875e">+</span></p>${body}</div>`;
+    sendEmail({
+      to: email, replyTo: 'team@minstermore.org.uk',
+      subject: `Thanks for volunteering at ${ev.title}`,
+      html: wrap(`<h1 style="font:800 22px Arial,sans-serif;margin:0 0 6px">Thank you, ${escHtml(name.split(' ')[0])}!</h1><p style="margin:0 0 14px">You're signed up to help at <b>${escHtml(ev.title)}</b>, ${escHtml(when)}.</p><ul style="padding-left:18px">${list}</ul><p>We'll be in touch nearer the time with details. If you can no longer make it, just reply to this email.</p>`),
+      text: `Thank you! You're signed up to help at ${ev.title}, ${when}:\n${roles.map(r => '- ' + r.title).join('\n')}\n\nIf you can no longer make it, reply to this email.`,
+    }).catch(e => console.error('Volunteer confirmation email failed:', e.message));
+    sendEmail({
+      replyTo: email,
+      subject: `New volunteer for ${ev.title}: ${name}`,
+      html: wrap(`<p style="margin:0 0 10px"><b>${escHtml(name)}</b> has signed up to help at <b>${escHtml(ev.title)}</b> (${escHtml(when)}).</p><ul style="padding-left:18px">${list}</ul><p style="margin:0">${escHtml(email)}${phone ? ` · ${escHtml(phone)}` : ''}${child ? ' · child at the school' : ''}</p>${note ? `<p style="margin:10px 0 0">Note: ${escHtml(note)}</p>` : ''}`),
+      text: `${name} signed up to help at ${ev.title} (${when}): ${roles.map(r => r.title).join(', ')}. ${email} ${phone}`,
+    }).catch(e => console.error('Volunteer notification email failed:', e.message));
+  }
 });
 
 app.post('/api/reserve', rateLimit(10), async (req, res) => {

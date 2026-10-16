@@ -248,6 +248,17 @@
   .fs-prizes{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
   .fs-prizes div{border:1px solid var(--hairline);border-radius:10px;padding:8px 10px;font-size:12.5px;color:var(--ink-mid);display:grid;gap:2px;}
   .fs-prizes b{font-family:'Archivo',sans-serif;font-size:16px;color:var(--ink);}
+  .help-row{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--tint);border-radius:12px;padding:8px 8px 8px 12px;margin:-6px 0 16px;font-size:13.5px;}
+  .help-row .btn{background:var(--card);flex:0 0 auto;}
+  .help-dialog{width:min(540px,100%);}
+  .role-list{display:grid;gap:8px;margin:0 0 18px;}
+  .role{display:flex;align-items:flex-start;gap:12px;border:2px solid var(--hairline);border-radius:14px;padding:12px 14px;cursor:pointer;background:var(--card);}
+  .role.on{border-color:var(--ink);}
+  .role.full{opacity:.5;cursor:not-allowed;}
+  .role input{width:20px;height:20px;flex:0 0 20px;margin-top:2px;accent-color:var(--coral-dark);}
+  .role-main{flex:1;display:grid;gap:2px;font-size:15px;}
+  .role-desc{font-size:13.5px;color:var(--ink-soft);line-height:1.45;}
+  .role-left{font-size:12.5px;font-weight:700;color:var(--coral-dark);white-space:nowrap;}
   .vf-check{margin:0 0 12px;color:oklch(0.975 0.006 258/.9);}
   .vf-check input{accent-color:var(--coral);}
   .biz-card{display:flex;flex-direction:column;}
@@ -450,7 +461,11 @@ let suggestSent = false;
 let volunteerSent = false;
 let donation = {amount:2500, other:'', giftAid:false, ga:{full_name:'', house:'', postcode:''}};
 let basketForm = {giftAid:false, ga:{full_name:'', house:'', postcode:''}, wall_name:'', over18:false};
-let modal = null; // {type:'donate'|'basket'|'reserve', ...}
+let modal = null; // {type:'donate'|'basket'|'reserve'|'help', ...}
+let helpForm = null;
+const openRoles = ev => (ev.roles||[]).filter(r => r.filled < r.needed);
+const openPlaces = ev => openRoles(ev).reduce((n,r)=>n + r.needed - r.filled, 0);
+const eventsNeedingHelp = () => (data && data.events || []).filter(ev => openRoles(ev).length);
 let busy = false;
 
 /* ---------------- HELPERS ---------------- */
@@ -556,6 +571,7 @@ function eventCard(ev){
       <div class="event-title">${esc(ev.title)}</div>
       ${ev.location?`<div class="event-meta">${esc(ev.location)}</div>`:''}
       <p class="event-blurb">${esc(ev.blurb || '')}</p>
+      ${openRoles(ev).length ? `<div class="help-row"><span><b>Volunteers needed</b> · ${openPlaces(ev)} ${openPlaces(ev)===1?'place':'places'}</span><button class="btn btn-ghost btn-small" data-help="${ev.id}">Help out</button></div>` : ''}
       ${noBooking ? (ev.price_note ? `<div class="dashed"><span class="price" style="font-size:16px;">${esc(ev.price_note)}</span></div>` : '') : `
       <div class="dashed">
         <span><span class="price">${ev.price_note?esc(ev.price_note):free?'Free':money(ev.price_pence)}</span>
@@ -683,7 +699,7 @@ function pageHome(){
     <section class="wrap">
       <div class="strip strip-tint">
         <div><h2>Two hours a term is plenty.</h2><p>Help at an event, join the committee, or work behind the scenes.</p></div>
-        <a class="btn btn-ink" href="#/about" data-scroll="volunteer">Volunteer with us</a>
+        <a class="btn btn-ink" href="#/about" data-scroll="${eventsNeedingHelp().length?'helpout':'volunteer'}">${eventsNeedingHelp().length?'See where help is needed':'Volunteer with us'}</a>
       </div>
     </section>`;
 }
@@ -994,6 +1010,18 @@ function pageAbout(){
             </div>`).join('')}
         </div>` : ''}
 
+      ${eventsNeedingHelp().length ? `
+        <div class="section-head" id="helpout" style="margin-top:44px;"><h2>Help at an event</h2><p class="note" style="margin:0;">Pick an event and the jobs you can do. It only takes a minute.</p></div>
+        <div class="grid-fill">
+          ${eventsNeedingHelp().map(ev=>`
+            <div class="hairline-card small-card">
+              <span class="event-date">${fmtDate(ev.starts_at,{weekday:'short',day:'numeric',month:'short'})} · ${fmtTime(ev.starts_at)}</span>
+              <h3 style="margin:8px 0 6px;">${esc(ev.title)}</h3>
+              <p style="margin:0 0 14px;">${openRoles(ev).map(r=>esc(r.title)).join(' · ')}</p>
+              <button class="btn btn-ink btn-small" data-help="${ev.id}">Help out · ${openPlaces(ev)} ${openPlaces(ev)===1?'place':'places'} left</button>
+            </div>`).join('')}
+        </div>` : ''}
+
       <div class="two-col" style="margin-top:44px;">
         <div>
           <div class="section-head" id="docs"><h2>Documents</h2></div>
@@ -1066,7 +1094,7 @@ function pagePrivacy(){
       <h2>What we collect, and why</h2>
       <p><b>Donations, memberships and tickets.</b> Payments are handled by Stripe. We receive your name, email and what you bought so we can send receipts, manage your membership and run events. We never see or store your card details.</p>
       <p><b>Gift Aid.</b> If you add Gift Aid we keep your name, house name or number, postcode and donation records so we can claim from HMRC, which requires us to keep them for six years.</p>
-      <p><b>Reservations and volunteering.</b> We keep your name and email (and phone number, if you give it) to manage your place or get in touch about helping. If you tell us your child attends the school, we use that only to organise volunteering.</p>
+      <p><b>Reservations and volunteering.</b> We keep your name and email (and phone number, if you give it) to manage your place or get in touch about helping. If you tell us your child attends the school, we use that only to organise volunteering. Volunteer names are never shown on the website.</p>
       <p><b>Suggestions and votes.</b> Suggestions are anonymous. To stop double voting, your browser stores a random code; it doesn't identify you.</p>
       <h2>Cookies</h2>
       <p>We don't use advertising or tracking cookies. Your browser stores your basket and voting code locally so the site works properly.</p>
@@ -1079,7 +1107,7 @@ function pagePrivacy(){
 
 /* ---------------- MODALS ---------------- */
 function openModal(m){ modal = m; renderModal(); }
-function closeModal(){ modal = null; busy = false; renderModal(); }
+function closeModal(){ if(helpForm && helpForm.sent) helpForm = null; modal = null; busy = false; renderModal(); }
 
 function renderModal(){
   const root = document.getElementById('modalRoot');
@@ -1090,6 +1118,36 @@ function renderModal(){
     inner = `<div class="overlay center" data-close><div class="dialog" role="dialog" aria-label="Make a donation">
       <div class="modal-head"><h2>Make a donation</h2><button class="close-btn" data-close aria-label="Close">&times;</button></div>
       ${donateBox()}
+    </div></div>`;
+  }
+  if(modal.type === 'help'){
+    const ev = data.events.find(e=>e.id===modal.id);
+    if(!ev){ modal=null; root.innerHTML=''; return; }
+    if(!helpForm || helpForm.id !== ev.id) helpForm = {id:ev.id, roles:new Set(), name:'', email:'', phone:'', note:'', child:false, consent:false, sent:false, busy:false};
+    const h = helpForm;
+    inner = `<div class="overlay center" data-close><div class="dialog help-dialog" role="dialog" aria-label="Help at ${esc(ev.title)}">
+      <div class="modal-head"><h2>${h.sent?'Thank you!':'Help at '+esc(ev.title)}</h2><button class="close-btn" data-close aria-label="Close">&times;</button></div>
+      <p class="note" style="margin:-8px 0 16px;">${fmtDate(ev.starts_at,{weekday:'long',day:'numeric',month:'long'})}, ${fmtTime(ev.starts_at)}${ev.location?' · '+esc(ev.location):''}</p>
+      ${h.sent ? `
+        <p style="font-size:15.5px;line-height:1.55;margin:0 0 16px;">You're signed up. We've emailed you a confirmation, and someone from the committee will be in touch nearer the time.</p>
+        <button class="btn btn-coral btn-big" data-close style="width:100%;">Done</button>
+      ` : `
+        <div class="role-list">
+          ${(ev.roles||[]).map(r=>{ const full = r.filled >= r.needed, left = r.needed - r.filled;
+            return `<label class="role ${full?'full':''} ${h.roles.has(r.id)?'on':''}">
+              <input type="checkbox" data-role="${r.id}" ${h.roles.has(r.id)?'checked':''} ${full?'disabled':''}>
+              <span class="role-main"><b>${esc(r.title)}</b>${r.description?`<span class="role-desc">${esc(r.description)}</span>`:''}</span>
+              <span class="role-left">${full?'Full':`${left} of ${r.needed} left`}</span>
+            </label>`; }).join('')}
+        </div>
+        <div class="field"><label for="hp-name">Name</label><input id="hp-name" autocomplete="name" value="${esc(h.name)}"></div>
+        <div class="field"><label for="hp-email">Email</label><input id="hp-email" type="email" autocomplete="email" value="${esc(h.email)}"></div>
+        <div class="field"><label for="hp-phone">Phone <span class="note">(optional, handy on the day)</span></label><input id="hp-phone" type="tel" autocomplete="tel" value="${esc(h.phone)}"></div>
+        <div class="field"><label for="hp-note">Anything we should know? <span class="note">(optional)</span></label><input id="hp-note" value="${esc(h.note)}" placeholder="e.g. can only do the first hour"></div>
+        <label class="check" style="margin-bottom:10px;"><input type="checkbox" id="hp-child" ${h.child?'checked':''}> <span>My child attends The Minster School</span></label>
+        <label class="check" style="margin-bottom:16px;"><input type="checkbox" id="hp-consent" ${h.consent?'checked':''}> <span>I'm happy for Minster More to contact me about volunteering at this event.</span></label>
+        <button class="btn btn-coral btn-big" id="helpGo" style="width:100%;" ${h.busy?'disabled':''}>${h.busy?'Signing you up…':'Sign me up'}</button>
+      `}
     </div></div>`;
   }
   if(modal.type === 'reserve' || modal.type === 'ticket'){
@@ -1214,6 +1272,18 @@ document.addEventListener('click', e=>{
   if(t.id === 'donateGo'){ donateNow(); return; }
   if(t.matches('[data-vote]')){ vote(t.dataset.vote); return; }
   if(t.matches('[data-reserve]')){ openModal({type:'reserve', id:t.dataset.reserve}); return; }
+  if(t.matches('[data-help]')){ closeDrawer(); openModal({type:'help', id:t.dataset.help}); return; }
+  if(t.id === 'helpGo'){
+    const h = helpForm;
+    if(!h.roles.size){ toast('Choose at least one thing you can help with.'); return; }
+    if(!h.name.trim() || !h.email.trim()){ toast('Add your name and email.'); return; }
+    if(!h.consent){ toast('Please tick the box to say we can contact you about volunteering.'); return; }
+    h.busy = true; renderModal();
+    post('/api/volunteer-signup', {role_ids:[...h.roles], name:h.name, email:h.email, phone:h.phone, note:h.note, child_at_school:h.child, consent:h.consent})
+      .then(()=>{ h.busy = false; h.sent = true; renderModal(); loadData(); })
+      .catch(err=>{ h.busy = false; renderModal(); toast(err.message); if(/full|no longer/i.test(err.message)) loadData(); });
+    return;
+  }
   if(t.matches('[data-ticket]')){ openModal({type:'ticket', id:t.dataset.ticket}); return; }
   if(t.id === 'rvGo'){
     const ev = data.events.find(x=>x.id===modal.id); const qty = Number(document.getElementById('rv-qty').value);
@@ -1265,6 +1335,7 @@ document.addEventListener('click', e=>{
 
 document.addEventListener('input', e=>{
   const t = e.target;
+  if(helpForm && t.id && t.id.startsWith('hp-') && t.type !== 'checkbox'){ helpForm[t.id.slice(3)] = t.value; return; }
   if(t.id === 'otherAmount'){
     donation.other = t.value;
     document.querySelectorAll('.amount.on').forEach(b=>b.classList.toggle('on', !donation.other));
@@ -1281,6 +1352,9 @@ document.addEventListener('input', e=>{
 });
 document.addEventListener('change', e=>{
   const t = e.target;
+  if(helpForm && t.dataset.role){ t.checked ? helpForm.roles.add(t.dataset.role) : helpForm.roles.delete(t.dataset.role); t.closest('.role').classList.toggle('on', t.checked); return; }
+  if(helpForm && t.id === 'hp-child'){ helpForm.child = t.checked; return; }
+  if(helpForm && t.id === 'hp-consent'){ helpForm.consent = t.checked; return; }
   if(t.dataset.gaToggle){
     const st = t.dataset.gaToggle==='donation' ? donation : basketForm;
     st.giftAid = t.checked;

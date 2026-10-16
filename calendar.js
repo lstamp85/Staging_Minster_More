@@ -42,12 +42,34 @@ function fold(line) {
   out.push(buf.toString('utf8'));
   return out.join('\r\n');
 }
+// Add each event's volunteer roles and sign-ups as e.rota (if the tables exist)
+async function attachRota(db, events) {
+  if (!events.length) return events;
+  const ids = events.map(e => e.id);
+  const [{ data: roles, error }, { data: signups }] = await Promise.all([
+    db.from('volunteer_roles').select('*').in('event_id', ids).order('sort').order('created_at'),
+    db.from('volunteer_signups').select('*').in('event_id', ids).order('created_at'),
+  ]);
+  if (error) return events; // rota not set up yet
+  for (const e of events) {
+    e.rota = (roles || []).filter(r => r.event_id === e.id).map(r => ({
+      title: r.title, needed: r.needed,
+      people: (signups || []).filter(s => s.role_id === r.id),
+    }));
+  }
+  return events;
+}
+function rotaText(e, sep) {
+  if (!e.rota || !e.rota.length) return '';
+  return e.rota.map(r => `${r.title} (${r.people.length}/${r.needed}): ${r.people.length ? r.people.map(p => p.name + (p.phone ? ` ${p.phone}` : '')).join(', ') : 'nobody yet'}`).join(sep);
+}
 function planningSummary(e, sep = '\n') {
   const parts = [];
   if (e.blurb) parts.push(e.blurb);
   parts.push(`Ticket price: ${e.price_pence ? '£' + (e.price_pence / 100).toFixed(2).replace(/\.00$/, '') : 'Free'}${e.capacity ? ` · capacity ${e.capacity}` : ''}`);
   parts.push(e.published ? 'On the website' : 'Not on the website yet');
   if (e.sells_alcohol) parts.push(`Selling alcohol · licence (TEN): ${e.licence_status || 'not set'}`);
+  if (e.rota && e.rota.length) parts.push(`Volunteer rota:${sep}${rotaText(e, sep)}`);
   if (e.volunteers) parts.push(`Volunteers:${sep}${e.volunteers}`);
   if (e.equipment) parts.push(`Equipment:${sep}${e.equipment}`);
   if (e.planning_notes) parts.push(`Notes:${sep}${e.planning_notes}`);
@@ -104,6 +126,7 @@ function calendarRoutes(app, db) {
     const since = new Date(Date.now() - 180 * 86400_000).toISOString();
     const { data, error } = await db.from('events').select('*').gte('starts_at', since).order('starts_at');
     if (error) return res.status(500).send('Calendar unavailable');
+    await attachRota(db, data).catch(() => {});
     res.set({ 'Content-Type': 'text/calendar; charset=utf-8', 'Cache-Control': 'no-cache', 'Content-Disposition': 'inline; filename="minster-more-events.ics"' });
     res.send(buildCalendar(data));
   });
@@ -155,6 +178,7 @@ function reminderEmail(e, days) {
     ${licenceWarn ? `<p style="background:#fdecea;border-radius:8px;padding:12px 14px;margin:0 0 8px"><b>Alcohol licence not yet applied for.</b> A Temporary Event Notice must reach Newark &amp; Sherwood council at least 10 working days before the event.</p>` : ''}
     ${!e.published ? `<p style="background:#eef2f7;border-radius:8px;padding:12px 14px;margin:0 0 8px">This event isn't on the website yet.</p>` : ''}
     ${section(`Volunteers (${vols.length})`, ul(vols))}
+    ${e.rota && e.rota.length ? section('Volunteer rota', e.rota.map(r => `<p style="margin:0 0 4px"><b>${esc(r.title)}</b> <span style="color:${r.people.length >= r.needed ? '#15803d' : '#b45309'}">${r.people.length} of ${r.needed}</span></p>${r.people.length ? `<ul style="margin:0 0 10px;padding-left:18px">${r.people.map(p => `<li>${esc(p.name)}${p.phone ? ` · ${esc(p.phone)}` : ''} · ${esc(p.email)}</li>`).join('')}</ul>` : '<p style="margin:0 0 10px;color:#b45309">Nobody yet</p>'}`).join('')) : ''}
     ${section('Equipment', ul(kit))}
     ${e.sells_alcohol ? section('Alcohol', `<p style="margin:0">Selling alcohol · licence: <b>${esc(e.licence_status || 'not set')}</b></p>`) : ''}
     ${e.planning_notes ? section('Notes', `<p style="margin:0;white-space:pre-wrap">${esc(e.planning_notes)}</p>`) : ''}
@@ -166,11 +190,11 @@ function reminderEmail(e, days) {
   return { subject, html, text };
 }
 
-async function sendEmail({ subject, html, text }) {
+async function sendEmail({ subject, html, text, to, replyTo }) {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: REMINDER_FROM, to: [REMINDER_TO], subject, html, text }),
+    body: JSON.stringify({ from: REMINDER_FROM, to: [to || REMINDER_TO], subject, html, text, ...(replyTo ? { reply_to: replyTo } : {}) }),
   });
   if (!res.ok) throw new Error(`Resend ${res.status}: ${await res.text()}`);
 }
@@ -194,6 +218,7 @@ async function runReminders(db) {
   const horizon = new Date(now.getTime() + 15 * 86400_000).toISOString();
   const { data: events, error } = await db.from('events').select('*').gt('starts_at', now.toISOString()).lte('starts_at', horizon);
   if (error) return console.error('Reminders: could not load events', error.message);
+  await attachRota(db, events).catch(() => {});
   for (const e of events) {
     const days = dueReminder(e.starts_at, now.getTime());
     if (!days) continue;
@@ -222,4 +247,4 @@ function startReminders(db) {
   setInterval(() => runReminders(db).catch(e => console.error('Reminders:', e)), 60 * 60_000).unref();
 }
 
-module.exports = { calendarRoutes, startReminders, buildCalendar, dueReminder, reminderEmail, runReminders };
+module.exports = { calendarRoutes, startReminders, buildCalendar, dueReminder, reminderEmail, runReminders, sendEmail, attachRota, whenText, esc };
