@@ -151,4 +151,123 @@ function committeeNotice({ subject, heading, intro, rows, cta }) {
   };
 }
 
-module.exports = { layout, detailsPanel, sectionTitle, nextSteps, eventSignupThanks, volunteerRegistrationThanks, committeeNotice, esc, fmtDate, fmtTime, SITE };
+// ----------------------------------------------------- payments etc. --
+const money = p => '£' + ((p || 0) / 100).toLocaleString('en-GB', { minimumFractionDigits: (p || 0) % 100 ? 2 : 0, maximumFractionDigits: 2 });
+const MANAGE_URL = `${SITE}/manage-membership`;
+
+function eventPanel(ev, extraRows = []) {
+  return detailsPanel([
+    ['Event', `<b>${esc(ev.title)}</b>`],
+    ['Date', esc(fmtDate(ev.starts_at))],
+    ['Time', esc(fmtTime(ev.starts_at))],
+    ['Where', esc(ev.location || '')],
+    ...extraRows,
+  ]);
+}
+function icsEvent(ev, uidPrefix, summaryPrefix, description) {
+  const d = t => new Date(t).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  const txt = s => String(s || '').replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+  const start = new Date(ev.starts_at), end = new Date(start.getTime() + 3 * 3600_000);
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Minster More//Events//EN', 'METHOD:PUBLISH', 'BEGIN:VEVENT',
+    `UID:${uidPrefix}-${ev.id}@minstermore.org.uk`, `DTSTAMP:${d(Date.now())}`, `DTSTART:${d(start)}`, `DTEND:${d(end)}`,
+    `SUMMARY:${txt(summaryPrefix + ev.title)}`, ...(ev.location ? [`LOCATION:${txt(ev.location)}`] : []),
+    `DESCRIPTION:${txt(description)}`, 'END:VEVENT', 'END:VCALENDAR'];
+  return { filename: `${ev.title.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.ics`, content: Buffer.from(lines.join('\r\n') + '\r\n').toString('base64') };
+}
+
+// One thank-you per payment, covering everything in the basket:
+// donation, Future Makers, 50:50 numbers and event tickets.
+function paymentThanks({ name, items, giftAid, wallName, events = {}, totalPence }) {
+  const donation = items.filter(i => i.kind === 'donation').reduce((t, i) => t + i.unit_pence * i.qty, 0);
+  const membership = items.find(i => i.kind === 'membership');
+  const fifty = items.filter(i => i.kind === 'fifty');
+  const tickets = items.filter(i => i.kind === 'ticket');
+  const fiftyQty = fifty.reduce((n, i) => n + i.qty, 0);
+  const term = fifty[0]?.term_label || 'this term';
+  const parts = [], textParts = [], attachments = [];
+
+  if (donation) {
+    const boost = giftAid ? Math.round(donation * 0.25) : 0;
+    parts.push(sectionTitle('Your donation') + detailsPanel([
+      ['Amount', `<b>${money(donation)}</b>`],
+      ['Gift Aid', giftAid ? `Yes, thank you. We'll claim an extra <b>${money(boost)}</b> from HMRC, at no cost to you.` : ''],
+      ['Goes to', 'The resources, experiences and opportunities the Minster community votes for'],
+    ]));
+    textParts.push(`Donation: ${money(donation)}${giftAid ? ` (plus ${money(boost)} Gift Aid)` : ''}`);
+  }
+  if (membership) {
+    parts.push(sectionTitle('Welcome to Future Makers') + detailsPanel([
+      ['Membership', '<b>£10 a month</b>, starting today'],
+      ['Over a year', '£120 of dependable funding for Minster students'],
+      ['Supporters wall', wallName ? `${esc(wallName)} <span style="color:${INK_SOFT};">(we'll add you once approved)</span>` : ''],
+      ['Gift Aid', giftAid ? 'Yes, on every monthly payment' : ''],
+      ['Change or cancel', `Any time at <a href="${MANAGE_URL}" style="color:${NAVY};">minstermore.org.uk/manage-membership</a>`],
+    ]) + `<p style="margin:0 0 18px;font:15px/1.6 ${FONT};color:${NAVY};">Regular giving lets us plan ahead and say yes to bigger ideas. You'll get a receipt each month, and we'll keep you posted on what your support helps fund.</p>`);
+    textParts.push(`Future Makers: £10 a month, starting today. Manage or cancel any time: ${MANAGE_URL}`);
+  }
+  if (fiftyQty) {
+    const pot = fiftyQty * 1000;
+    parts.push(sectionTitle('Your 50:50 Club entry') + detailsPanel([
+      ['Numbers', `<b>${fiftyQty}</b> ${fiftyQty === 1 ? 'number' : 'numbers'} for <b>${esc(term)}</b>`],
+      ['How it works', 'Half of everything raised goes to student resources. The other half is the prize fund: 1st prize wins half of it, 2nd and 3rd a quarter each.'],
+      ['The draw', 'At the end of term, witnessed by two committee members. Winners are emailed within 48 hours.'],
+    ]) + `<p style="margin:0 0 18px;font:13.5px/1.6 ${FONT};color:${INK_SOFT};">Numbers are given out in order of entry and don't carry over between terms. Players must be 18 or over.</p>`);
+    textParts.push(`50:50 Club: ${fiftyQty} number(s) for ${term}. Winners are emailed within 48 hours of the end-of-term draw.`);
+  }
+  for (const t of tickets) {
+    const ev = events[t.ref_id];
+    if (!ev) continue;
+    parts.push(sectionTitle(t.qty === 1 ? 'Your ticket' : 'Your tickets') + eventPanel(ev, [['Tickets', `<b>${t.qty}</b> × ${money(t.unit_pence)}`]])
+      + `<p style="margin:0 0 18px;font:15px/1.6 ${FONT};color:${NAVY};">Your name is on the list, so just give it on the door. No need to print anything.</p>`);
+    attachments.push(icsEvent(ev, 'ticket', '', `${t.qty} ticket(s). Questions: events@minstermore.org.uk`));
+    textParts.push(`${ev.title}: ${t.qty} ticket(s), ${fmtDate(ev.starts_at)} ${fmtTime(ev.starts_at)}${ev.location ? `, ${ev.location}` : ''}. Give your name on the door.`);
+  }
+
+  const kinds = [donation && 'donation', membership && 'membership', fiftyQty && 'fifty', tickets.length && 'tickets'].filter(Boolean);
+  const subject = kinds.length > 1 ? 'Thank you for supporting Minster More'
+    : membership ? 'Welcome to Future Makers'
+    : donation ? 'Thank you for your donation'
+    : fiftyQty ? `You're in the 50:50 Club for ${term}`
+    : tickets.length === 1 && events[tickets[0].ref_id] ? `Your tickets for ${events[tickets[0].ref_id].title}` : 'Your tickets';
+  const intro = membership ? "Thank you for becoming a Future Maker. Your monthly support makes more possible for every Minster student."
+    : donation ? 'Thank you for your donation. Every pound goes to what Minster students need, chosen by the school community.'
+    : fiftyQty && !tickets.length ? "Thanks for joining the 50:50 Club. Good luck in the draw, and thank you for helping fund student resources."
+    : 'Thank you for your order. Here are your details.';
+  if (attachments.length) parts.push(`<p style="margin:0 0 6px;font:15px/1.6 ${FONT};color:${NAVY};">We've attached ${attachments.length === 1 ? 'a calendar entry' : 'calendar entries'} so you can save the date.</p>`);
+  if (kinds.length > 1 && totalPence) parts.push(`<p style="margin:12px 0 0;font:15px/1.6 ${FONT};color:${NAVY};">Total paid today: <b>${money(totalPence)}</b></p>`);
+
+  return {
+    subject,
+    html: layout({
+      preheader: intro,
+      heading: `Thank you, ${firstName(name)}!`,
+      intro,
+      body: parts.join(''),
+      cta: membership ? { label: 'See where the money goes', href: `${SITE}/#/money` } : tickets.length ? { label: 'See all our events', href: `${SITE}/#/events` } : { label: 'See where the money goes', href: `${SITE}/#/money` },
+      footerNote: `Your payment receipt comes separately from our payment provider, Stripe. Any questions? Just reply to this email or contact <a href="mailto:finance@minstermore.org.uk" style="color:${NAVY};">finance@minstermore.org.uk</a>.`,
+    }),
+    text: `Thank you, ${String(name || 'there').split(' ')[0]}!\n\n${intro}\n\n${textParts.join('\n\n')}\n\nAny questions? Reply to this email or contact finance@minstermore.org.uk.\n\nThe Minster More committee\n${SITE}`,
+    attachments: attachments.length ? attachments : undefined,
+  };
+}
+
+// Free event reservation
+function reservationConfirm({ name, ev, qty }) {
+  return {
+    subject: `You're booked in: ${ev.title}`,
+    html: layout({
+      preheader: `${qty} ${qty === 1 ? 'place' : 'places'} reserved for ${ev.title}, ${fmtDate(ev.starts_at)}.`,
+      heading: `You're booked in, ${firstName(name)}!`,
+      intro: `Thanks for reserving your ${qty === 1 ? 'place' : 'places'} at <b>${esc(ev.title)}</b>. We're looking forward to seeing you.`,
+      body: eventPanel(ev, [['Places', `<b>${qty}</b>`]])
+        + (ev.blurb ? `<p style="margin:0 0 18px;font:15px/1.6 ${FONT};color:${INK_SOFT};">${esc(ev.blurb)}</p>` : '')
+        + `<p style="margin:0 0 6px;font:15px/1.6 ${FONT};color:${NAVY};">Your name is on the list, so just give it when you arrive. We've attached a calendar entry so you can save the date.</p>`,
+      cta: { label: 'See all our events', href: `${SITE}/#/events` },
+      footerNote: `Can't make it any more? Please reply to let us know so we can offer your place to someone else, or contact <a href="mailto:events@minstermore.org.uk" style="color:${NAVY};">events@minstermore.org.uk</a>.`,
+    }),
+    text: `You're booked in!\n\n${ev.title}\n${fmtDate(ev.starts_at)}, ${fmtTime(ev.starts_at)}${ev.location ? `\n${ev.location}` : ''}\nPlaces: ${qty}\n\nCan't make it? Reply to let us know.\n\nThe Minster More committee\n${SITE}`,
+    attachments: [icsEvent(ev, 'reservation', '', `${qty} place(s) reserved. Questions: events@minstermore.org.uk`)],
+  };
+}
+
+module.exports = { paymentThanks, reservationConfirm, layout, detailsPanel, sectionTitle, nextSteps, eventSignupThanks, volunteerRegistrationThanks, committeeNotice, esc, fmtDate, fmtTime, SITE };

@@ -195,6 +195,25 @@ async function handlePaidSession(s) {
     }
   }
   bustCache();
+
+  // Branded thank-you (Stripe sends the payment receipt separately)
+  if (process.env.RESEND_API_KEY && email) {
+    try {
+      const ticketIds = items.filter(i => i.kind === 'ticket').map(i => i.ref_id);
+      const events = {};
+      if (ticketIds.length) {
+        const { data: evs } = await db.from('events').select('id,title,blurb,starts_at,location').in('id', ticketIds);
+        for (const e of evs || []) events[e.id] = e;
+      }
+      const onlyTickets = items.every(i => i.kind === 'ticket');
+      await sendEmail({
+        ...mail.paymentThanks({ name, items, giftAid: Boolean(order.gift_aid), wallName: order.wall_name, events, totalPence: order.total_pence }),
+        to: email, replyTo: onlyTickets ? 'events@minstermore.org.uk' : 'finance@minstermore.org.uk',
+      });
+    } catch (err) {
+      console.error('Payment thank-you email failed:', err.message);
+    }
+  }
 }
 
 async function handleRenewal(inv) {
@@ -453,6 +472,22 @@ app.post('/api/reserve', rateLimit(10), async (req, res) => {
   if (error) return res.status(500).json({ error: 'Could not save your reservation.' });
   bustCache();
   res.json({ ok: true });
+  if (process.env.RESEND_API_KEY) {
+    sendEmail({ ...mail.reservationConfirm({ name, ev, qty }), to: email, replyTo: 'events@minstermore.org.uk' })
+      .catch(err => console.error('Reservation email failed:', err.message));
+  }
+});
+
+// Future Makers can change or cancel their membership through Stripe's
+// customer portal. Set STRIPE_PORTAL_LINK to the portal's login link.
+app.get('/manage-membership', (req, res) => {
+  if (process.env.STRIPE_PORTAL_LINK) return res.redirect(302, process.env.STRIPE_PORTAL_LINK);
+  res.type('html').send(`<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Manage your membership · Minster More</title>
+<body style="margin:0;background:#f8f5ee;font:16px/1.6 Arial,sans-serif;color:#131f35;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:16px">
+<div style="background:#fff;border-radius:18px;padding:32px;max-width:460px"><p style="font:800 22px Arial;margin:0 0 16px">minster more<span style="color:#e2875e">+</span></p>
+<h1 style="font:800 24px Arial;margin:0 0 10px">Manage your Future Makers membership</h1>
+<p>To change or cancel your membership, email <a href="mailto:finance@minstermore.org.uk?subject=Future%20Makers%20membership" style="color:#131f35;font-weight:700">finance@minstermore.org.uk</a> from the address you signed up with and we'll sort it straight away.</p>
+<p><a href="/" style="color:#131f35">Back to the website</a></p></div></body>`);
 });
 
 // Create a Stripe Checkout session from the basket. Prices always come from
