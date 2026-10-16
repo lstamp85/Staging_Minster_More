@@ -230,14 +230,14 @@ app.get('/api/site', async (req, res) => {
     const [settings, funds, pots, ideas, votes, events, news, committee, documents, supporters] = await Promise.all([
       db.from('settings').select('year_label,target_pence,easyfundraising_url,coop_url,fifty_term_label').eq('id', 1).single(),
       db.from('funds').select('amount_pence'),
-      db.from('pots').select('id,title,blurb,goal_pence,raised_pence,status,sort').order('sort').order('created_at'),
+      db.from('pots').select('*').order('sort').order('created_at'),
       db.from('ideas').select('id,title,blurb,cost_pence,who,created_at').eq('status', 'approved'),
       db.from('votes').select('idea_id'),
-      db.from('events').select('id,title,blurb,starts_at,location,price_pence,capacity').eq('published', true).gte('starts_at', since).order('starts_at'),
+      db.from('events').select('*').eq('published', true).gte('starts_at', since).order('starts_at'),
       db.from('news').select('id,title,body,published_on').order('published_on', { ascending: false }).limit(6),
       db.from('committee').select('id,name,role,photo_url,sort').order('sort'),
-      db.from('documents').select('id,title,category,doc_date,file_url').order('doc_date', { ascending: false, nullsFirst: false }),
-      db.from('supporters').select('id,name,kind,tier,note,url').eq('approved', true).order('created_at'),
+      db.from('documents').select('*').order('doc_date', { ascending: false, nullsFirst: false }),
+      db.from('supporters').select('*').eq('approved', true).order('created_at'),
     ]);
     const firstError = [settings, funds, pots, ideas, votes, events, news, committee, documents, supporters].find(r => r.error);
     if (firstError) throw firstError.error;
@@ -245,10 +245,22 @@ app.get('/api/site', async (req, res) => {
     const voteMap = {};
     for (const v of votes.data) voteMap[v.idea_id] = (voteMap[v.idea_id] || 0) + 1;
 
+    // Only public fields leave the server: planning notes, private files and
+    // unapproved supporters are never sent to the website.
     const evs = await Promise.all(events.data.map(async e => ({
-      ...e,
-      remaining: e.capacity ? Math.max(0, e.capacity - await ticketsTaken(e.id)) : null,
+      id: e.id, title: e.title, blurb: e.blurb, starts_at: e.starts_at, location: e.location,
+      price_pence: e.price_pence, capacity: e.capacity,
+      booking: e.booking || 'online', price_note: e.price_note || null,
+      remaining: e.capacity && (e.booking || 'online') === 'online' ? Math.max(0, e.capacity - await ticketsTaken(e.id)) : null,
     })));
+    const potsOut = pots.data.map(p => ({
+      id: p.id, title: p.title, blurb: p.blurb, goal_pence: p.goal_pence, raised_pence: p.raised_pence,
+      status: p.status, sort: p.sort, funded_year: p.funded_year || null,
+    }));
+    const docsOut = documents.data.filter(d => !d.private && d.file_url)
+      .map(d => ({ id: d.id, title: d.title, category: d.category, doc_date: d.doc_date, file_url: d.file_url }));
+    const supportersOut = supporters.data
+      .map(x => ({ id: x.id, name: x.name, kind: x.kind, tier: x.tier, note: x.note, url: x.url, logo_url: x.logo_url || null }));
 
     siteCache = {
       settings: {
@@ -257,13 +269,13 @@ app.get('/api/site', async (req, res) => {
         fifty_term_label: currentTerm(settings.data.fifty_term_label),
       },
       raised_pence: funds.data.reduce((s, f) => s + f.amount_pence, 0),
-      pots: pots.data,
+      pots: potsOut,
       ideas: ideas.data.map(i => ({ ...i, votes: voteMap[i.id] || 0 })).sort((a, b) => b.votes - a.votes),
       events: evs,
       news: news.data,
       committee: committee.data,
-      documents: documents.data,
-      supporters: supporters.data,
+      documents: docsOut,
+      supporters: supportersOut,
       payments: Boolean(stripe),
     };
     siteCacheAt = Date.now();
@@ -308,8 +320,16 @@ app.post('/api/volunteer', rateLimit(5), async (req, res) => {
   const name = str(req.body.name, 120);
   const email = str(req.body.email, 200);
   const help = str(req.body.help, 120);
+  const phone = str(req.body.phone, 40);
+  const child = req.body.child_at_school === true;
   if (!name || !EMAIL_RE.test(email)) return res.status(400).json({ error: 'Add your name and a valid email.' });
-  const { error } = await db.from('volunteers').insert({ name, email, help });
+  if (phone && !/^[0-9+()\-\s]{7,}$/.test(phone)) return res.status(400).json({ error: 'That phone number doesn’t look right.' });
+  if (req.body.consent !== true) return res.status(400).json({ error: 'Please tick the box to say we can contact you about volunteering.' });
+  let { error } = await db.from('volunteers').insert({ name, email, help, phone: phone || null, child_at_school: child, consent: true });
+  if (error && /column/i.test(error.message)) {
+    // database not yet updated: keep the extra details in the "help" field
+    ({ error } = await db.from('volunteers').insert({ name, email, help: [help, phone && `Phone: ${phone}`, child && 'Child at the school'].filter(Boolean).join(' · ') }));
+  }
   if (error) return res.status(500).json({ error: 'Could not send that — please email team@minstermore.org.uk.' });
   res.json({ ok: true });
 });
@@ -322,7 +342,7 @@ app.post('/api/reserve', rateLimit(10), async (req, res) => {
   const qty = int(req.body.qty);
   if (!name || !EMAIL_RE.test(email) || !(qty >= 1 && qty <= 20)) return res.status(400).json({ error: 'Add your name, email and number of places.' });
   const { data: ev } = await db.from('events').select('*').eq('id', eventId).eq('published', true).maybeSingle();
-  if (!ev || ev.price_pence > 0) return res.status(404).json({ error: 'That event can’t be reserved.' });
+  if (!ev || ev.price_pence > 0 || (ev.booking && ev.booking !== 'online')) return res.status(404).json({ error: 'That event can’t be reserved.' });
   if (new Date(ev.starts_at) < new Date()) return res.status(400).json({ error: 'That event has already started.' });
   if (ev.capacity && (await ticketsTaken(ev.id)) + qty > ev.capacity) return res.status(409).json({ error: 'Sorry, there aren’t enough places left.' });
   const { error } = await db.from('reservations').insert({ event_id: ev.id, name, email, qty });
@@ -356,7 +376,7 @@ app.post('/api/checkout', rateLimit(10), async (req, res) => {
         const qty = int(it.qty);
         if (!(qty >= 1 && qty <= 10)) throw new Error('Up to 10 tickets per event.');
         const { data: ev } = await db.from('events').select('*').eq('id', str(it.event_id, 64)).eq('published', true).maybeSingle();
-        if (!ev || ev.price_pence <= 0) throw new Error('One of those events is no longer on sale.');
+        if (!ev || ev.price_pence <= 0 || (ev.booking && ev.booking !== 'online')) throw new Error('One of those events is no longer on sale.');
         if (new Date(ev.starts_at) < new Date()) throw new Error(`${ev.title} has already started.`);
         if (ev.capacity && (await ticketsTaken(ev.id)) + qty > ev.capacity) throw new Error(`Not enough tickets left for ${ev.title}.`);
         const when = new Date(ev.starts_at).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Europe/London' });

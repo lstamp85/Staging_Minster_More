@@ -82,6 +82,7 @@ When a new feature needs extra database fields, the SQL is in `supabase/migratio
 
 - `2026-10-14-event-planning.sql`: planning notes on events (alcohol, licence, volunteers, equipment).
 - `2026-10-15-event-reminders.sql`: keeps track of reminder emails so each is sent once.
+- `2026-10-16-site-tweaks.sql`: volunteer phone/child/consent, business logos, committee-only files, event booking options, funded in previous years.
 
 ## Event calendar and reminders
 

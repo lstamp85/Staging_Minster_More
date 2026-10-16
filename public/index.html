@@ -113,6 +113,7 @@
   .section-head{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;flex-wrap:wrap;margin-bottom:24px;}
   .section-head h2{font-size:30px;font-weight:800;margin:0;letter-spacing:-0.01em;}
   .grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;}
+  .grid-fill{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px;}
   .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px;}
   .pvm-card{border-radius:22px;padding:28px;}
   .pvm-card .eyebrow{display:block;margin-bottom:10px;}
@@ -247,6 +248,17 @@
   .fs-prizes{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
   .fs-prizes div{border:1px solid var(--hairline);border-radius:10px;padding:8px 10px;font-size:12.5px;color:var(--ink-mid);display:grid;gap:2px;}
   .fs-prizes b{font-family:'Archivo',sans-serif;font-size:16px;color:var(--ink);}
+  .vf-check{margin:0 0 12px;color:oklch(0.975 0.006 258/.9);}
+  .vf-check input{accent-color:var(--coral);}
+  .biz-card{display:flex;flex-direction:column;}
+  .biz-logo{display:flex;align-items:center;justify-content:flex-start;height:72px;margin-bottom:14px;}
+  .biz-logo img{max-height:72px;max-width:180px;width:auto;object-fit:contain;}
+  .biz-site{margin-top:auto;font-size:14px;font-weight:600;color:var(--coral-dark);text-decoration:none;word-break:break-all;}
+  .biz-site:hover{text-decoration:underline;}
+  .prev-year{margin-bottom:28px;}
+  .prev-year-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap;}
+  .prev-year-head h3{font-size:20px;margin:0;}
+  .prev-total{font-family:'Archivo',sans-serif;font-weight:700;color:var(--ink-mid);}
   .sponsor-panel{background:var(--tint);border-radius:24px;padding:34px;}
   .sponsor-panel h2{margin:0 0 8px;font-size:28px;}
   .tier-card{background:var(--card);border-radius:18px;padding:22px;text-align:center;}
@@ -530,8 +542,10 @@ function ideaCard(idea){
 function eventCard(ev){
   const soldOut = ev.remaining === 0;
   const free = ev.price_pence === 0;
+  const noBooking = ev.booking === 'none';
   let action;
-  if(soldOut) action = `<span class="chip chip-ink">Sold out</span>`;
+  if(noBooking) action = '';
+  else if(soldOut) action = `<span class="chip chip-ink">Sold out</span>`;
   else if(free) action = `<button class="btn btn-ink btn-small" data-reserve="${ev.id}">Reserve a place</button>`;
   else if(data.payments) action = `<button class="btn btn-ink btn-small" data-ticket="${ev.id}">Buy tickets</button>`;
   else action = `<a class="btn btn-ghost btn-small" href="mailto:${EMAIL.events}?subject=${encodeURIComponent('Tickets: '+ev.title)}">Ask about tickets</a>`;
@@ -542,11 +556,12 @@ function eventCard(ev){
       <div class="event-title">${esc(ev.title)}</div>
       ${ev.location?`<div class="event-meta">${esc(ev.location)}</div>`:''}
       <p class="event-blurb">${esc(ev.blurb || '')}</p>
+      ${noBooking ? (ev.price_note ? `<div class="dashed"><span class="price" style="font-size:16px;">${esc(ev.price_note)}</span></div>` : '') : `
       <div class="dashed">
-        <span><span class="price">${free?'Free':money(ev.price_pence)}</span>
+        <span><span class="price">${ev.price_note?esc(ev.price_note):free?'Free':money(ev.price_pence)}</span>
         ${ev.remaining!=null && !soldOut && ev.remaining<=20?`<span class="note" style="display:block;">${ev.remaining} left</span>`:''}</span>
         ${action}
-      </div>
+      </div>`}
     </div>`;
 }
 
@@ -774,7 +789,9 @@ function pageGive(){
 
 function pageMoney(){
   const s = data.settings, raised = data.raised_pence, p = pct(raised, s.target_pence);
-  const pots = data.pots;
+  const pots = data.pots.filter(x=>!x.funded_year);
+  const previous = data.pots.filter(x=>x.funded_year);
+  const years = [...new Set(previous.map(x=>x.funded_year))].sort().reverse();
   const funded = pots.filter(x=>x.status==='Funded'||x.status==='Delivered').length;
   return `
     <div class="wrap page-head">
@@ -813,6 +830,26 @@ function pageMoney(){
         </div>`;
       }).join('') : emptyState('Priorities for '+esc(s.year_label)+' are being agreed', 'They\'ll appear here once the committee has costed the most-backed ideas.')}
 
+      ${previous.length ? `
+      <div class="section-head" style="margin-top:48px;" id="previous"><h2>Funded in previous years</h2></div>
+      ${years.map(y=>{
+        const items = previous.filter(x=>x.funded_year===y);
+        const total = items.reduce((t,x)=>t+(x.raised_pence||x.goal_pence||0),0);
+        return `
+        <div class="prev-year">
+          <div class="prev-year-head"><h3>${esc(y)}</h3>${total?`<span class="prev-total">${money(total)} funded</span>`:''}</div>
+          <div class="grid-fill">
+            ${items.map(x=>`
+              <div class="hairline-card small-card prev-item">
+                <span class="chip chip-coral">${x.status==='Delivered'?'Delivered':'Funded'}</span>
+                <h3 style="margin-top:12px;">${esc(x.title)}</h3>
+                ${x.blurb?`<p>${esc(x.blurb)}</p>`:'<p></p>'}
+                ${(x.raised_pence||x.goal_pence)?`<div class="pot-raised" style="font-size:20px;">${money(x.raised_pence||x.goal_pence)}</div>`:''}
+              </div>`).join('')}
+          </div>
+        </div>`;
+      }).join('')}` : ''}
+
       <div class="grid3" style="margin-top:32px;">
         <div class="bordered-card">
           <h3>How a priority gets funded</h3>
@@ -820,7 +857,7 @@ function pageMoney(){
         </div>
         <div class="bordered-card">
           <h3>What we funded last year</h3>
-          <p>Around £12,000 helped fund a careers platform, outdoor seating, football pitch divider nets, SEND equipment, recital hall chairs, coach hire and science equipment.</p>
+          ${previous.length ? `<p>See everything we've funded in <a class="link" href="#/money" data-scroll="previous">previous years</a>, below.</p>` : `<p>Around £12,000 helped fund a careers platform, outdoor seating, football pitch divider nets, SEND equipment, recital hall chairs, coach hire and science equipment.</p>`}
         </div>
         <div class="bordered-card">
           <h3>Accounts and minutes</h3>
@@ -905,11 +942,14 @@ function pageWall(){
   const fm = data.supporters.filter(s=>s.kind==='future_maker');
   const local = data.supporters.filter(s=>s.kind==='local');
   const biz = data.supporters.filter(s=>s.kind==='business');
+  const site = u => { try{ return new URL(u).hostname.replace(/^www\./,''); }catch(e){ return u; } };
   const card = s => `
-    <div class="hairline-card small-card">
+    <div class="hairline-card small-card biz-card">
+      ${s.logo_url ? `<${s.url?`a href="${esc(s.url)}" target="_blank" rel="noopener"`:'div'} class="biz-logo"><img src="${esc(s.logo_url)}" alt="${esc(s.name)} logo" loading="lazy"></${s.url?'a':'div'}>` : ''}
       ${s.tier?`<span class="chip chip-cyan">${esc(s.tier)}</span>`:''}
-      <h3 style="${s.tier?'margin-top:12px;':''}">${s.url?`<a href="${esc(s.url)}" target="_blank" rel="noopener" style="text-decoration:none;">${esc(s.name)} ↗</a>`:esc(s.name)}</h3>
-      ${s.note?`<p style="margin:0;">${esc(s.note)}</p>`:''}
+      <h3 style="${s.tier?'margin-top:12px;':''}">${esc(s.name)}</h3>
+      ${s.note?`<p style="margin:0 0 12px;">${esc(s.note)}</p>`:'<p style="margin:0;"></p>'}
+      ${s.url?`<a class="biz-site" href="${esc(s.url)}" target="_blank" rel="noopener">${esc(site(s.url))} ↗</a>`:''}
     </div>`;
   const any = fm.length || local.length || biz.length;
   return `
@@ -920,8 +960,8 @@ function pageWall(){
     </div>
     <div class="wrap" style="margin-top:28px;">
       ${!any ? emptyState('Be the first name on the wall', 'Become a Future Maker or a business partner and we\'ll feature you here.') : ''}
-      ${biz.length?`<div class="section-head"><h2>Business partners</h2></div><div class="grid3" style="margin-bottom:44px;">${biz.map(card).join('')}</div>`:''}
-      ${local.length?`<div class="section-head"><h2>Local partners</h2></div><div class="grid3" style="margin-bottom:44px;">${local.map(card).join('')}</div>`:''}
+      ${biz.length?`<div class="section-head"><h2>Business partners</h2></div><div class="grid-fill" style="margin-bottom:44px;">${biz.map(card).join('')}</div>`:''}
+      ${local.length?`<div class="section-head"><h2>Local partners</h2></div><div class="grid-fill" style="margin-bottom:44px;">${local.map(card).join('')}</div>`:''}
       ${fm.length?`<div class="section-head"><h2>Future Makers</h2></div><div class="wall-names" style="margin-bottom:44px;">${fm.map(s=>`<span class="wall-name">${esc(s.name)}</span>`).join('')}</div>`:''}
       <div class="strip strip-ink" style="margin-top:28px;">
         <div><h2>Want your name up here?</h2><p>Join Future Makers or become a business partner.</p></div>
@@ -988,13 +1028,17 @@ function pageAbout(){
             <h3>Thank you!</h3>
             <p style="font-size:15px;line-height:1.55;margin:0;">We'll be in touch soon. Any questions in the meantime: <a href="mailto:${EMAIL.team}" style="color:var(--coral);">${EMAIL.team}</a></p>
           ` : `
-            <h3>Volunteer with us</h3>
+            <h3 style="margin-bottom:6px;">Volunteer with us</h3>
+            <p style="font-size:14.5px;line-height:1.5;margin:0 0 18px;color:oklch(0.975 0.006 258/.85);">Leave your details and someone from the committee will contact you about helping out.</p>
             <div class="field"><label for="vf-name">Name</label><input id="vf-name" type="text" autocomplete="name"></div>
             <div class="field"><label for="vf-email">Email</label><input id="vf-email" type="email" autocomplete="email"></div>
+            <div class="field"><label for="vf-phone">Phone <span style="opacity:.7;">(optional)</span></label><input id="vf-phone" type="tel" autocomplete="tel" inputmode="tel"></div>
             <div class="field"><label for="vf-help">How could you help?</label>
-              <select id="vf-help"><option>Event days</option><option>Committee meetings</option><option>Behind the scenes</option><option>Not sure yet</option></select></div>
-            <button class="btn btn-coral" id="volunteerSubmit" style="width:100%;" ${busy?'disabled':''}>${busy?'Sending…':'Send'}</button>
-            <p class="note" style="margin:14px 0 0;">We'll only use your details to get in touch about volunteering.</p>
+              <select id="vf-help"><option>Event days</option><option>Committee meetings</option><option>Behind the scenes</option><option>Specialist skills</option><option>Not sure yet</option></select></div>
+            <label class="check vf-check"><input type="checkbox" id="vf-child"> <span>My child attends The Minster School</span></label>
+            <label class="check vf-check"><input type="checkbox" id="vf-consent"> <span>I'm happy for Minster More to contact me by email or phone about volunteering.</span></label>
+            <button class="btn btn-coral" id="volunteerSubmit" style="width:100%;margin-top:6px;" ${busy?'disabled':''}>${busy?'Sending…':'Contact me about volunteering'}</button>
+            <p class="note" style="margin:14px 0 0;">We'll only use your details to talk to you about volunteering. See our <a href="#/privacy" style="color:inherit;">privacy notice</a>.</p>
           `}
         </div>
       </div>
@@ -1022,7 +1066,7 @@ function pagePrivacy(){
       <h2>What we collect, and why</h2>
       <p><b>Donations, memberships and tickets.</b> Payments are handled by Stripe. We receive your name, email and what you bought so we can send receipts, manage your membership and run events. We never see or store your card details.</p>
       <p><b>Gift Aid.</b> If you add Gift Aid we keep your name, house name or number, postcode and donation records so we can claim from HMRC, which requires us to keep them for six years.</p>
-      <p><b>Reservations and volunteering.</b> We keep your name and email to manage your place or get in touch about helping.</p>
+      <p><b>Reservations and volunteering.</b> We keep your name and email (and phone number, if you give it) to manage your place or get in touch about helping. If you tell us your child attends the school, we use that only to organise volunteering.</p>
       <p><b>Suggestions and votes.</b> Suggestions are anonymous. To stop double voting, your browser stores a random code; it doesn't identify you.</p>
       <h2>Cookies</h2>
       <p>We don't use advertising or tracking cookies. Your browser stores your basket and voting code locally so the site works properly.</p>
@@ -1201,12 +1245,14 @@ document.addEventListener('click', e=>{
   }
   if(t.id === 'suggestAgain'){ suggestSent = false; render(); return; }
   if(t.id === 'volunteerSubmit'){
-    const body = {name:document.getElementById('vf-name').value, email:document.getElementById('vf-email').value, help:document.getElementById('vf-help').value};
+    const v = id => document.getElementById(id);
+    const body = {name:v('vf-name').value, email:v('vf-email').value, phone:v('vf-phone').value, help:v('vf-help').value, child_at_school:v('vf-child').checked, consent:v('vf-consent').checked};
     if(!body.name.trim() || !body.email.trim()){ toast('Add your name and email.'); return; }
+    if(!body.consent){ toast('Please tick the box to say we can contact you about volunteering.'); return; }
     t.disabled = true; t.textContent = 'Sending…';
     post('/api/volunteer', body)
       .then(()=>{ volunteerSent = true; render(); })
-      .catch(err=>{ t.disabled=false; t.textContent='Send'; toast(err.message); });
+      .catch(err=>{ t.disabled=false; t.textContent='Contact me about volunteering'; toast(err.message); });
     return;
   }
   if(t.matches('a[data-scroll]')){

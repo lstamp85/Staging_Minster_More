@@ -107,6 +107,7 @@
   .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:12px 20px;border-radius:999px;font-size:14px;z-index:99;max-width:calc(100% - 32px);}
   .toast.err{background:var(--bad);}
   .winner{font-family:'Archivo',sans-serif;font-size:20px;font-weight:800;}
+  .link-btn{color:var(--coral-dark);text-align:left;padding:0;text-decoration:underline;text-underline-offset:2px;}
   .thumb{width:36px;height:36px;border-radius:50%;object-fit:cover;background:var(--tint);}
 
   @media (max-width:860px){
@@ -159,7 +160,8 @@ function safeName(n){ return n.toLowerCase().replace(/[^a-z0-9.]+/g,'-').replace
 const TABLES = {
   pots: {
     title:'Funding priorities', single:'priority', order:[['sort',true],['created_at',true]],
-    intro:'The pots shown on “Where the money goes”. Update the raised figure as money is allocated.',
+    intro:'The pots shown on “Where the money goes”. Update the raised figure as money is allocated. To add something funded in an earlier year, add it here and fill in “Funded in a previous year”.',
+    sortRows: rows => [...rows.filter(r=>!r.funded_year), ...rows.filter(r=>r.funded_year).sort((a,b)=>String(b.funded_year).localeCompare(String(a.funded_year)))],
     fields:[
       {k:'title', label:'Title', type:'text', req:true, full:true},
       {k:'blurb', label:'What it would make possible', type:'textarea', full:true},
@@ -167,8 +169,9 @@ const TABLES = {
       {k:'raised_pence', label:'Raised so far', type:'money'},
       {k:'status', label:'Stage', type:'select', options:POT_STATUSES},
       {k:'sort', label:'Order', type:'number', hint:'Lower numbers show first'},
+      {k:'funded_year', label:'Funded in a previous year', type:'text', hint:'e.g. 2025/26. Fill this in to show it under “Funded in previous years” instead of this year’s priorities. Leave blank for current priorities.'},
     ],
-    cols:[['Priority', r=>`<b>${esc(r.title)}</b>`], ['Stage', r=>`<span class="chip cyan">${esc(r.status)}</span>`], ['Raised', r=>`${money(r.raised_pence)} <span class="muted">of ${money(r.goal_pence)}</span>`, 'r']],
+    cols:[['Priority', r=>`<b>${esc(r.title)}</b>`], ['Stage', r=>`<span class="chip cyan">${esc(r.status)}</span>${r.funded_year?` <span class="chip">${esc(r.funded_year)}</span>`:''}`], ['Raised', r=>`${money(r.raised_pence)} <span class="muted">of ${money(r.goal_pence)}</span>`, 'r']],
   },
   events: {
     title:'Events', single:'event', order:[['starts_at',true]],
@@ -186,7 +189,9 @@ const TABLES = {
       {k:'blurb', label:'Description', type:'textarea', full:true},
       {k:'starts_at', label:'Date and time', type:'datetime', req:true},
       {k:'location', label:'Location', type:'text'},
-      {k:'price_pence', label:'Ticket price', type:'money', hint:'Leave at 0 for a free event'},
+      {k:'booking', label:'Booking', type:'select', options:['online','none'], labels:{online:'Book on the website (tickets, or reserve a place if free)', none:'No booking, just list the event'}, def:'online'},
+      {k:'price_pence', label:'Ticket price', type:'money', hint:'Leave at 0 for a free event. Only used for website booking.'},
+      {k:'price_note', label:'Price text', type:'text', hint:'Optional, e.g. “£5 on the door” or “Free, just turn up”. Shown instead of the price.'},
       {k:'capacity', label:'Capacity', type:'number', hint:'Optional — sales stop when full'},
       {k:'published', label:'Show on the website', type:'checkbox', def:true, hint:'Untick while you are still planning — it stays here for the committee.'},
       {type:'section', label:'Planning notes', hint:'Committee only. None of this appears on the website.'},
@@ -211,7 +216,9 @@ const TABLES = {
   },
   documents: {
     title:'Documents', single:'document', order:[['doc_date',false]],
-    intro:'AGM minutes, accounts and reports, listed on the About page. PDFs work best.',
+    intro:'AGM minutes, accounts and reports, listed on the About page. PDFs work best. For files that shouldn’t go on the website, use Committee files.',
+    filter: q => q.eq('private', false),
+    fixed: {private:false},
     fields:[
       {k:'title', label:'Title', type:'text', req:true, full:true, hint:'e.g. AGM minutes — September 2026'},
       {k:'category', label:'Type', type:'select', options:DOC_CATS},
@@ -220,6 +227,20 @@ const TABLES = {
     ],
     cols:[['Document', r=>`<a href="${esc(r.file_url)}" target="_blank" rel="noopener"><b>${esc(r.title)}</b></a>`], ['Type', r=>`<span class="chip cyan">${esc(r.category)}</span>`], ['Date', r=>d(r.doc_date)]],
     onDelete: r=> r.file_path && sb.storage.from('files').remove([r.file_path]),
+  },
+  privatedocs: {
+    table:'documents', title:'Committee files', single:'file', order:[['created_at',false]],
+    intro:'Important documents for the committee only: insurance, policies, bank letters, contracts. Never shown on the website, and only admins can open them.',
+    filter: q => q.eq('private', true),
+    fixed: {private:true},
+    fields:[
+      {k:'title', label:'Title', type:'text', req:true, full:true, hint:'e.g. Public liability insurance 2026/27'},
+      {k:'category', label:'Type', type:'select', options:DOC_CATS},
+      {k:'doc_date', label:'Date', type:'date'},
+      {k:'file_url', label:'File', type:'file', bucket:'private', folder:'committee-files', pathKey:'file_path', req:true, full:true},
+    ],
+    cols:[['File', r=>`<button class="link-btn" data-signed="${esc(r.file_path)}"><b>${esc(r.title)}</b></button>`], ['Type', r=>`<span class="chip">${esc(r.category)}</span>`], ['Date', r=>d(r.doc_date||r.created_at)]],
+    onDelete: r=> r.file_path && sb.storage.from('private').remove([r.file_path]),
   },
   committee: {
     title:'Committee', single:'committee member', order:[['sort',true]],
@@ -239,11 +260,12 @@ const TABLES = {
       {k:'name', label:'Name', type:'text', req:true},
       {k:'kind', label:'Type', type:'select', options:Object.keys(KIND_LABEL), labels:KIND_LABEL},
       {k:'tier', label:'Business tier', type:'select', options:['','Supporter','Partner','Pot sponsor'], hint:'Business partners only'},
-      {k:'url', label:'Website', type:'url'},
+      {k:'url', label:'Website', type:'url', hint:'Include https://, e.g. https://www.example.co.uk'},
       {k:'note', label:'Note', type:'text', full:true, hint:'e.g. Sponsoring the recital hall chairs'},
+      {k:'logo_url', label:'Logo', type:'file', folder:'supporters', accept:'image/*', full:true, hint:'Business partners: PNG with a transparent or white background works best.'},
       {k:'approved', label:'Show on the website', type:'checkbox', def:true},
     ],
-    cols:[['Name', r=>`<b>${esc(r.name)}</b>${r.note?`<br><span class="muted">${esc(r.note)}</span>`:''}`], ['Type', r=>`${KIND_LABEL[r.kind]}${r.tier?` · ${esc(r.tier)}`:''}`], ['', r=>r.approved?'':'<span class="chip coral">Awaiting approval</span>']],
+    cols:[['', r=>r.logo_url?`<img src="${esc(r.logo_url)}" alt="" style="max-height:36px;max-width:80px;object-fit:contain;">`:''], ['Name', r=>`<b>${esc(r.name)}</b>${r.note?`<br><span class="muted">${esc(r.note)}</span>`:''}`], ['Type', r=>`${KIND_LABEL[r.kind]}${r.tier?` · ${esc(r.tier)}`:''}`], ['', r=>r.approved?'':'<span class="chip coral">Awaiting approval</span>']],
     extra: r=> r.approved ? '' : `<button class="btn btn-ok btn-sm" data-approve-supporter="${r.id}">Approve</button>`,
   },
 };
@@ -260,7 +282,7 @@ function fieldHTML(f, row){
   else if(f.type==='datetime') input = `<input type="datetime-local" id="${id}" value="${localDT(v)}">`;
   else if(f.type==='date') input = `<input type="date" id="${id}" value="${esc(v||'')}">`;
   else if(f.type==='number') input = `<input type="number" id="${id}" value="${v??''}">`;
-  else if(f.type==='file') input = `${v?`<div class="muted" style="margin-bottom:6px;">Current: <a href="${esc(v)}" target="_blank" rel="noopener">view file</a> — choose a new one to replace it</div>`:''}<input type="file" id="${id}" accept="${f.accept||''}">`;
+  else if(f.type==='file') input = `${v?`<div class="muted" style="margin-bottom:6px;">Current: ${f.bucket==='private'?`<button class="link-btn" data-signed="${esc(row&&row[f.pathKey])}">view file</button>`:`<a href="${esc(v)}" target="_blank" rel="noopener">view file</a>`} — choose a new one to replace it</div>`:''}<input type="file" id="${id}" accept="${f.accept||''}">`;
   else input = `<input type="${f.type==='url'?'url':'text'}" id="${id}" value="${esc(v)}">`;
   return `<div class="f ${f.full?'full':''}"><label for="${id}">${f.label}${f.req?'':' <span class="muted">(optional)</span>'}</label>${input}${f.hint?`<div class="hint">${f.hint}</div>`:''}</div>`;
 }
@@ -278,11 +300,12 @@ async function readForm(t, row){
       const file = el.files[0];
       if(file){
         if(file.size > 20*1024*1024) throw new Error('Files must be under 20MB.');
+        const bucket = f.bucket || 'files';
         const path = `${f.folder}/${Date.now()}-${safeName(file.name)}`;
-        check(await sb.storage.from('files').upload(path, file, {contentType:file.type, upsert:false}));
-        out[f.k] = sb.storage.from('files').getPublicUrl(path).data.publicUrl;
+        check(await sb.storage.from(bucket).upload(path, file, {contentType:file.type, upsert:false}));
+        out[f.k] = bucket === 'files' ? sb.storage.from(bucket).getPublicUrl(path).data.publicUrl : 'private';
         if(f.pathKey) out[f.pathKey] = path;
-        if(row && f.pathKey && row[f.pathKey]) sb.storage.from('files').remove([row[f.pathKey]]);
+        if(row && f.pathKey && row[f.pathKey]) sb.storage.from(bucket).remove([row[f.pathKey]]);
       } else if(!row){ out[f.k] = null; }
     }
     else out[f.k] = el.value.trim() || null;
@@ -294,7 +317,8 @@ async function readForm(t, row){
 
 async function tableView(key){
   const t = TABLES[key];
-  let q = sb.from(key).select('*');
+  let q = sb.from(t.table || key).select('*');
+  if(t.filter) q = t.filter(q);
   t.order.forEach(([c,asc])=> q = q.order(c, {ascending:asc, nullsFirst:false}));
   let rows = check(await q);
   if(t.sortRows) rows = t.sortRows(rows);
@@ -306,7 +330,7 @@ async function tableView(key){
       <div class="card">
         <h2>${row?'Edit':'New'} ${t.single}</h2>
         <div class="form">${t.fields.map(f=>fieldHTML(f,row)).join('')}</div>
-        <div class="form-foot"><button class="btn btn-coral" data-save="${key}">Save</button><button class="btn btn-ghost" data-cancel>Cancel</button></div>
+        <div class="form-foot"><button class="btn btn-coral" data-save="${key}">Save</button><button class="btn btn-ghost" data-cancel>Cancel</button>${row?`<span style="flex:1"></span><button class="btn-danger" data-del="${key}:${row.id}">Delete ${t.single}</button>`:''}</div>
       </div>` : ''}
     <div class="card table-wrap">
       ${rows.length ? `<table><thead><tr>${t.cols.map(c=>`<th class="${c[2]||''}">${c[0]}</th>`).join('')}<th></th></tr></thead><tbody>
@@ -466,6 +490,7 @@ async function planningView(){
             ${e.published?'<span class="chip cyan">On website</span>':'<span class="chip">Not on website</span>'}
             ${e.sells_alcohol?`<span class="chip ${e.licence_status==='Approved'?'ok':'coral'}">Bar · ${esc(e.licence_status||'licence not set')}</span>`:'<span class="chip">No alcohol</span>'}
             <button class="btn btn-ghost btn-sm" data-plan-edit="${e.id}">Edit</button>
+            <button class="btn-danger" data-del="events:${e.id}">Delete</button>
           </div>
         </div>
         ${licenceWarn?`<div class="notice" style="margin-bottom:14px;"><b>Alcohol licence:</b> apply for a Temporary Event Notice with Newark &amp; Sherwood council now. It must be in at least 10 working days before the event.</div>`:''}
@@ -485,8 +510,10 @@ async function inboxView(){
   return `
     <div class="head"><div><h1>Volunteers</h1><p>People who've offered to help through the website. Tick them off once someone's been in touch.</p></div></div>
     <div class="card table-wrap">
-      ${rows.length?`<table><thead><tr><th>Name</th><th>Email</th><th>Interested in</th><th>Sent</th><th></th></tr></thead><tbody>
-        ${rows.map(r=>`<tr style="${r.handled?'opacity:.55':''}"><td><b>${esc(r.name)}</b></td><td><a href="mailto:${esc(r.email)}">${esc(r.email)}</a></td><td>${esc(r.help||'')}</td><td class="muted">${d(r.created_at)}</td>
+      ${rows.length?`<table><thead><tr><th>Name</th><th>Contact</th><th>Interested in</th><th>Sent</th><th></th></tr></thead><tbody>
+        ${rows.map(r=>`<tr style="${r.handled?'opacity:.55':''}"><td><b>${esc(r.name)}</b>${r.child_at_school?'<br><span class="chip cyan">Child at the school</span>':''}</td>
+          <td><a href="mailto:${esc(r.email)}">${esc(r.email)}</a>${r.phone?`<br><a href="tel:${esc(r.phone.replace(/\s/g,''))}">${esc(r.phone)}</a>`:''}</td>
+          <td>${esc(r.help||'')}</td><td class="muted">${d(r.created_at)}${r.consent?'<br><span class="muted">Agreed to be contacted</span>':''}</td>
           <td><div class="actions"><button class="btn btn-ghost btn-sm" data-handled="${r.id}:${!r.handled}">${r.handled?'Mark new':'Done'}</button><button class="btn-danger" data-del="volunteers:${r.id}">Delete</button></div></td></tr>`).join('')}
       </tbody></table>`:`<div class="empty">No volunteer sign-ups yet.</div>`}
     </div>`;
@@ -588,7 +615,7 @@ async function adminsView(){
 const NAV = [
   ['dashboard','Totaliser'], ['ideas','Suggestions'], ['pots','Funding priorities'], ['events','Events'], ['planning','Event planning'],
   ['payments','Payments'], ['fifty','50:50 Club'], ['giftaid','Gift Aid'],
-  ['documents','Documents'], ['news','News'], ['committee','Committee'], ['supporters','Supporters wall'],
+  ['documents','Documents'], ['privatedocs','Committee files'], ['news','News'], ['committee','Committee'], ['supporters','Supporters wall'],
   ['inbox','Volunteers'], ['settings','Settings'], ['admins','Admins'],
 ];
 
@@ -631,7 +658,10 @@ async function render(){
     else html = await tableView(view);
     $('#main').innerHTML = html;
   }catch(e){
-    $('#main').innerHTML = `<div class="empty">Couldn't load this page: ${esc(e.message||e)}</div>`;
+    const needsUpdate = /column .* does not exist|could not find .* column/i.test(e.message||'');
+    $('#main').innerHTML = needsUpdate
+      ? `<div class="notice"><b>Database update needed.</b> In Supabase, open SQL Editor → New query, paste the latest file from <code>supabase/migrations/</code> on GitHub (<code>2026-10-16-site-tweaks.sql</code>) and click Run. Then refresh this page.</div>`
+      : `<div class="empty">Couldn't load this page: ${esc(e.message||e)}</div>`;
   }
 }
 
@@ -684,20 +714,36 @@ document.addEventListener('click', async e=>{
       const key = t.dataset.save, tb = TABLES[key];
       t.disabled = true;
       let rows = null;
-      if(editing!=='new') rows = check(await sb.from(key).select('*').eq('id',editing));
+      const tbl = tb.table || key;
+      if(editing!=='new') rows = check(await sb.from(tbl).select('*').eq('id',editing));
       const values = await readForm(tb, rows && rows[0]).catch(err=>{ t.disabled=false; toast(err.message,true); throw err; });
-      if(editing==='new') check(await sb.from(key).insert(values));
-      else check(await sb.from(key).update(values).eq('id',editing));
+      Object.assign(values, tb.fixed || {});
+      if(editing==='new') check(await sb.from(tbl).insert(values));
+      else check(await sb.from(tbl).update(values).eq('id',editing));
       toast('Saved.'); editing=null;
       if(window._returnTo){ const r = window._returnTo; window._returnTo = null; go(r); } else render();
       return;
     }
     if(t.dataset.del){
-      const [table,id] = t.dataset.del.split(':');
-      if(!confirm('Delete this? It can\'t be undone.')) return;
-      const tb = TABLES[table];
+      const [delKey,id] = t.dataset.del.split(':');
+      const table = (TABLES[delKey] && TABLES[delKey].table) || delKey;
+      let msg = 'Delete this? It can\'t be undone.';
+      if(table==='events'){
+        const [ev, tix, res] = await Promise.all([
+          sb.from('events').select('title').eq('id',id).maybeSingle(),
+          sb.from('order_items').select('qty, orders!inner(status)').eq('kind','ticket').eq('ref_id',id).eq('orders.status','paid'),
+          sb.from('reservations').select('qty').eq('event_id',id),
+        ]);
+        const sold = (tix.data||[]).reduce((n,r)=>n+r.qty,0), booked = (res.data||[]).reduce((n,r)=>n+r.qty,0);
+        msg = `Delete “${ev.data?.title||'this event'}”? It will be removed from the website, the committee calendar and reminders. This can't be undone.`;
+        if(sold) msg += `\n\n${sold} ticket${sold===1?' has':'s have'} been sold. Deleting won't refund anyone: issue refunds in Stripe first. Ticket payments stay in the Payments list.`;
+        if(booked) msg += `\n\n${booked} free place${booked===1?' is':'s are'} reserved; their reservations will be deleted.`;
+      }
+      if(!confirm(msg)) return;
+      const tb = TABLES[delKey];
       if(tb && tb.onDelete){ const r = check(await sb.from(table).select('*').eq('id',id)); if(r[0]) await tb.onDelete(r[0]); }
       check(await sb.from(table).delete().eq('id',id));
+      if(editing===id){ editing=null; if(window._returnTo){ const r=window._returnTo; window._returnTo=null; toast('Deleted.'); go(r); return; } }
       toast('Deleted.'); render(); return;
     }
     if(t.dataset.idea){
@@ -711,6 +757,13 @@ document.addEventListener('click', async e=>{
       toast('Saved.'); editing=null; render(); return;
     }
     if(t.dataset.attendees){ go('attendees', t.dataset.attendees); return; }
+    if(t.dataset.signed){
+      const w = window.open('', '_blank');
+      const {data, error} = await sb.storage.from('private').createSignedUrl(t.dataset.signed, 300);
+      if(error || !data){ if(w) w.close(); return toast(error?.message || 'Could not open that file.', true); }
+      if(w) w.location = data.signedUrl; else location.href = data.signedUrl;
+      return;
+    }
     if(t.id==='copyCal'){ const el=$('#calUrl'); el.select(); try{ await navigator.clipboard.writeText(el.value); toast('Calendar link copied.'); }catch(e){ document.execCommand('copy'); toast('Calendar link copied.'); } return; }
     if(t.hasAttribute('data-plan-new')){ window._returnTo='planning'; view='events'; sub=null; editing='new'; await render(); window.scrollTo(0,0); return; }
     if(t.dataset.planEdit){ window._returnTo='planning'; view='events'; sub=null; editing=t.dataset.planEdit; await render(); window.scrollTo(0,0); return; }
