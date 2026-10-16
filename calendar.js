@@ -170,10 +170,7 @@ function reminderEmail(e, days) {
   const licenceWarn = e.sells_alcohol && !['Applied', 'Approved'].includes(e.licence_status || '');
   const section = (title, body) => `<h3 style="font:700 13px Arial,sans-serif;text-transform:uppercase;letter-spacing:.06em;color:#6b7280;margin:22px 0 6px">${title}</h3>${body}`;
   const ul = items => items.length ? `<ul style="margin:0;padding-left:18px">${items.map(i => `<li style="margin:3px 0">${esc(i)}</li>`).join('')}</ul>` : '<p style="margin:0;color:#6b7280">Nothing noted yet</p>';
-  const html = `
-  <div style="font:15px/1.5 Arial,sans-serif;color:#131f35;max-width:560px">
-    <p style="font:800 20px Arial,sans-serif;letter-spacing:-.02em;margin:0 0 18px">minster more<span style="color:#e2875e">+</span></p>
-    <h1 style="font:800 24px Arial,sans-serif;margin:0 0 4px">${esc(e.title)} is ${lead}</h1>
+  const inner = `
     <p style="margin:0 0 16px;color:#374151">${esc(whenText(e.starts_at))}${e.location ? ` · ${esc(e.location)}` : ''}</p>
     ${licenceWarn ? `<p style="background:#fdecea;border-radius:8px;padding:12px 14px;margin:0 0 8px"><b>Alcohol licence not yet applied for.</b> A Temporary Event Notice must reach Newark &amp; Sherwood council at least 10 working days before the event.</p>` : ''}
     ${!e.published ? `<p style="background:#eef2f7;border-radius:8px;padding:12px 14px;margin:0 0 8px">This event isn't on the website yet.</p>` : ''}
@@ -182,19 +179,25 @@ function reminderEmail(e, days) {
     ${section('Equipment', ul(kit))}
     ${e.sells_alcohol ? section('Alcohol', `<p style="margin:0">Selling alcohol · licence: <b>${esc(e.licence_status || 'not set')}</b></p>`) : ''}
     ${e.planning_notes ? section('Notes', `<p style="margin:0;white-space:pre-wrap">${esc(e.planning_notes)}</p>`) : ''}
-    <p style="margin:26px 0 0"><a href="${SITE}/admin" style="background:#131f35;color:#fff;text-decoration:none;padding:10px 18px;border-radius:999px;font-weight:700">Open event planning</a></p>
-    <p style="margin:22px 0 0;font-size:12px;color:#6b7280">Automatic ${days}-day reminder from the Minster More website.</p>
-  </div>`;
+  `;
+  const html = require('./emails').layout({
+    preheader: `${e.title} is ${lead}: volunteers, equipment and notes.`,
+    heading: `${esc(e.title)} is ${lead}`,
+    body: inner,
+    cta: { label: 'Open event planning', href: `${SITE}/admin` },
+    footerNote: `Automatic ${days}-day reminder from the Minster More website.`,
+    signoff: '',
+  });
   const text = `${e.title} is ${lead}\n${whenText(e.starts_at)}${e.location ? ` · ${e.location}` : ''}\n\n${planningSummary(e)}`;
   const subject = `${e.title} is ${lead} — ${new Date(e.starts_at).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/London' })}`;
   return { subject, html, text };
 }
 
-async function sendEmail({ subject, html, text, to, replyTo }) {
+async function sendEmail({ subject, html, text, to, replyTo, attachments }) {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: REMINDER_FROM, to: [to || REMINDER_TO], subject, html, text, ...(replyTo ? { reply_to: replyTo } : {}) }),
+    body: JSON.stringify({ from: REMINDER_FROM, to: [to || REMINDER_TO], subject, html, text, ...(replyTo ? { reply_to: replyTo } : {}), ...(attachments ? { attachments } : {}) }),
   });
   if (!res.ok) throw new Error(`Resend ${res.status}: ${await res.text()}`);
 }

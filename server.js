@@ -7,7 +7,8 @@ const path = require('path');
 const express = require('express');
 const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
-const { calendarRoutes, startReminders, sendEmail, whenText, esc: escHtml } = require('./calendar');
+const { calendarRoutes, startReminders, sendEmail, whenText } = require('./calendar');
+const mail = require('./emails');
 
 const {
   PORT = 3000,
@@ -348,6 +349,38 @@ app.post('/api/volunteer', rateLimit(5), async (req, res) => {
   }
   if (error) return res.status(500).json({ error: 'Could not send that — please email team@minstermore.org.uk.' });
   res.json({ ok: true });
+
+  if (process.env.RESEND_API_KEY) {
+    // Upcoming published events that still need helpers, for the thank-you email
+    let upcoming = [];
+    try {
+      const { data: evs } = await db.from('events').select('id,title,starts_at,location').eq('published', true).gte('starts_at', new Date().toISOString()).order('starts_at').limit(12);
+      const ids = (evs || []).map(e => e.id);
+      if (ids.length) {
+        const [{ data: roles }, { data: sg }] = await Promise.all([
+          db.from('volunteer_roles').select('id,event_id,needed').in('event_id', ids),
+          db.from('volunteer_signups').select('role_id').in('event_id', ids),
+        ]);
+        const taken = {}; for (const x of sg || []) taken[x.role_id] = (taken[x.role_id] || 0) + 1;
+        const open = new Set((roles || []).filter(r => (taken[r.id] || 0) < r.needed).map(r => r.event_id));
+        upcoming = evs.filter(e => open.has(e.id));
+      }
+    } catch (e) { /* rota not set up yet */ }
+    sendEmail({ ...mail.volunteerRegistrationThanks({ name, help, upcoming }), to: email, replyTo: 'team@minstermore.org.uk' })
+      .catch(e => console.error('Volunteer thank-you email failed:', e.message));
+    sendEmail({ ...mail.committeeNotice({
+      subject: `New volunteer: ${name}`,
+      heading: `${mail.esc(name)} has offered to volunteer`,
+      intro: 'Someone filled in the volunteer form on the website.',
+      rows: [
+        ['Can help with', mail.esc(help)],
+        ['Email', `<a href="mailto:${mail.esc(email)}" style="color:#131f35;">${mail.esc(email)}</a>`],
+        ['Phone', mail.esc(phone)],
+        ['Child at school', child ? 'Yes' : ''],
+      ],
+      cta: { label: 'Open volunteers in admin', href: `${mail.SITE}/admin` },
+    }), replyTo: email }).catch(e => console.error('Volunteer notification email failed:', e.message));
+  }
 });
 
 app.post('/api/volunteer-signup', rateLimit(8), async (req, res) => {
@@ -385,21 +418,23 @@ app.post('/api/volunteer-signup', rateLimit(8), async (req, res) => {
 
   // Emails (after responding, so a slow email never holds up the volunteer)
   if (process.env.RESEND_API_KEY) {
-    const when = whenText(ev.starts_at) + (ev.location ? ` · ${ev.location}` : '');
-    const list = roles.map(r => `<li><b>${escHtml(r.title)}</b>${r.description ? ` – ${escHtml(r.description)}` : ''}</li>`).join('');
-    const wrap = body => `<div style="font:15px/1.5 Arial,sans-serif;color:#131f35;max-width:560px"><p style="font:800 20px Arial,sans-serif;margin:0 0 18px">minster more<span style="color:#e2875e">+</span></p>${body}</div>`;
-    sendEmail({
-      to: email, replyTo: 'team@minstermore.org.uk',
-      subject: `Thanks for volunteering at ${ev.title}`,
-      html: wrap(`<h1 style="font:800 22px Arial,sans-serif;margin:0 0 6px">Thank you, ${escHtml(name.split(' ')[0])}!</h1><p style="margin:0 0 14px">You're signed up to help at <b>${escHtml(ev.title)}</b>, ${escHtml(when)}.</p><ul style="padding-left:18px">${list}</ul><p>We'll be in touch nearer the time with details. If you can no longer make it, just reply to this email.</p>`),
-      text: `Thank you! You're signed up to help at ${ev.title}, ${when}:\n${roles.map(r => '- ' + r.title).join('\n')}\n\nIf you can no longer make it, reply to this email.`,
-    }).catch(e => console.error('Volunteer confirmation email failed:', e.message));
-    sendEmail({
-      replyTo: email,
+    const { data: fullEv } = await db.from('events').select('id,title,blurb,starts_at,location').eq('id', ev.id).maybeSingle();
+    const thanks = mail.eventSignupThanks({ name, ev: fullEv || ev, roles, note });
+    sendEmail({ ...thanks, to: email, replyTo: 'team@minstermore.org.uk' })
+      .catch(e => console.error('Volunteer confirmation email failed:', e.message));
+    sendEmail({ ...mail.committeeNotice({
       subject: `New volunteer for ${ev.title}: ${name}`,
-      html: wrap(`<p style="margin:0 0 10px"><b>${escHtml(name)}</b> has signed up to help at <b>${escHtml(ev.title)}</b> (${escHtml(when)}).</p><ul style="padding-left:18px">${list}</ul><p style="margin:0">${escHtml(email)}${phone ? ` · ${escHtml(phone)}` : ''}${child ? ' · child at the school' : ''}</p>${note ? `<p style="margin:10px 0 0">Note: ${escHtml(note)}</p>` : ''}`),
-      text: `${name} signed up to help at ${ev.title} (${when}): ${roles.map(r => r.title).join(', ')}. ${email} ${phone}`,
-    }).catch(e => console.error('Volunteer notification email failed:', e.message));
+      heading: `${mail.esc(name)} is helping at ${mail.esc(ev.title)}`,
+      intro: `A new volunteer signed up on the website for <b>${mail.esc(ev.title)}</b>, ${mail.esc(mail.fmtDate(ev.starts_at))}.`,
+      rows: [
+        ['Role' + (roles.length > 1 ? 's' : ''), roles.map(r => `<b>${mail.esc(r.title)}</b>`).join('<br>')],
+        ['Email', `<a href="mailto:${mail.esc(email)}" style="color:#131f35;">${mail.esc(email)}</a>`],
+        ['Phone', mail.esc(phone)],
+        ['Child at school', child ? 'Yes' : ''],
+        ['Note', mail.esc(note)],
+      ],
+      cta: { label: 'Open the volunteer rota', href: `${mail.SITE}/admin` },
+    }), replyTo: email }).catch(e => console.error('Volunteer notification email failed:', e.message));
   }
 });
 
