@@ -360,6 +360,20 @@
     .logo{font-size:17px;}
     .donate-btn{padding:9px 13px;}
   }
+  /* Cookie banner */
+  .cookie-bar{position:fixed;left:16px;right:16px;bottom:16px;z-index:150;max-width:760px;margin:0 auto;background:var(--ink);color:var(--paper);border-radius:20px;padding:20px 22px;display:flex;gap:18px;align-items:center;box-shadow:0 18px 40px -16px oklch(0.24 0.05 258 / 0.7);}
+  .cookie-bar p{margin:0;font-size:14px;line-height:1.5;flex:1;}
+  .cookie-bar a{color:var(--paper);font-weight:600;}
+  .cookie-actions{display:flex;gap:10px;flex-shrink:0;}
+  .cookie-actions .btn{padding:11px 20px;font-size:14px;}
+  .btn-cookie-reject{background:transparent;color:var(--paper);box-shadow:inset 0 0 0 2px oklch(0.975 0.006 258 / 0.7);}
+  .btn-cookie-reject:hover{background:oklch(0.975 0.006 258 / 0.12);}
+  footer button.foot-link{display:block;font-size:14px;color:oklch(0.975 0.006 258/.82);margin-bottom:9px;padding:0;text-align:left;}
+  footer button.foot-link:hover{color:#f8f5ee;}
+  @media (max-width:640px){
+    .cookie-bar{flex-direction:column;align-items:stretch;left:12px;right:12px;bottom:12px;padding:18px;}
+    .cookie-actions .btn{flex:1;}
+  }
 </style>
 </head>
 <body>
@@ -408,7 +422,8 @@
       <a href="#/money">Where the money goes</a>
       <a href="#/about">Committee &amp; documents</a>
       <a href="./assets/Minster-More-brand-and-mission.pdf" target="_blank" rel="noopener">Brand &amp; mission</a>
-      <a href="#/privacy">Privacy</a>
+      <a href="#/privacy">Privacy &amp; cookies</a>
+      <button class="foot-link" data-cookie-settings>Cookie settings</button>
     </div>
     <div>
       <h4>Contact</h4>
@@ -423,6 +438,7 @@
   </div>
 </footer>
 
+<div id="cookieRoot"></div>
 <div id="modalRoot"></div>
 <div id="toastRoot" aria-live="polite"></div>
 
@@ -507,6 +523,7 @@ function route(){
   closeDrawer();
   render();
   window.scrollTo(0,0);
+  trackPage();
 }
 window.addEventListener('hashchange', route);
 
@@ -1097,9 +1114,12 @@ function pagePrivacy(){
       <p><b>Reservations and volunteering.</b> We keep your name and email (and phone number, if you give it) to manage your place or get in touch about helping. If you tell us your child attends the school, we use that only to organise volunteering. Volunteer names are never shown on the website.</p>
       <p><b>Suggestions and votes.</b> Suggestions are anonymous. To stop double voting, your browser stores a random code; it doesn't identify you.</p>
       <h2>Cookies</h2>
-      <p>We don't use advertising or tracking cookies. Your browser stores your basket and voting code locally so the site works properly.</p>
+      <p><b>Needed for the site to work.</b> Your browser stores your basket, your voting code and your cookie choice on your device. These stay on your device and are always on.</p>
+      <p><b>Analytics (only if you say yes).</b> With your permission we use Google Analytics to count visits and see which pages and features are used, such as how many people start a donation, so we can improve the site. It sets cookies called <code>_ga</code> and <code>_ga_D7ZNH930GX</code>, which last up to 13 months. Google processes this data for us. We have turned off advertising features and Google signals, and we never send your name, email or payment details to Google.</p>
+      <p>We don't use advertising cookies. Stripe sets its own cookies on its payment pages to process payments and prevent fraud.</p>
+      <p>You're currently <b id="cookieState">${analyticsAllowed() ? 'allowing' : 'not allowing'}</b> analytics cookies. <button class="link" data-cookie-settings style="font-size:inherit;padding:0;">Change your cookie settings</button></p>
       <h2>Who we share it with</h2>
-      <p>Only the services that run the site (Stripe for payments, Supabase for our database, Railway for hosting) and HMRC for Gift Aid claims. We never sell your information.</p>
+      <p>Only the services that run the site (Stripe for payments, Supabase for our database, Railway for hosting, Resend for emails, and Google Analytics if you allow it) and HMRC for Gift Aid claims. We never sell your information.</p>
       <h2>Your rights</h2>
       <p>You can ask to see, correct or delete the information we hold about you. Email <a href="mailto:${EMAIL.hello}">${EMAIL.hello}</a>. You can also complain to the Information Commissioner's Office at ico.org.uk.</p>
     </div>`;
@@ -1202,16 +1222,26 @@ async function vote(id){
   voted.add(id); save('mm_voted', [...voted]);
   const idea = data.ideas.find(i=>i.id===id); if(idea) idea.votes += 1;
   render();
-  try{ await post('/api/vote', {idea_id:id, voter}); toast('Vote counted — thank you.'); }
+  try{ await post('/api/vote', {idea_id:id, voter}); track('vote'); toast('Vote counted — thank you.'); }
   catch(e){
     if(!/already voted/.test(e.message)){ voted.delete(id); save('mm_voted', [...voted]); if(idea) idea.votes -= 1; render(); }
     toast(e.message);
   }
 }
 
+function checkoutValue(items){
+  return items.reduce((t,i)=> t + (i.kind==='donation' ? i.amount_pence
+    : i.kind==='membership' ? 1000
+    : i.kind==='fifty' ? 1000*i.qty
+    : i.kind==='ticket' ? ((data.events.find(e=>e.id===i.event_id)||{}).price_pence||0)*i.qty : 0), 0) / 100;
+}
 async function startCheckout(items, extra){
   busy = true; renderModal(); if(page==='give') render();
   try{
+    const value = checkoutValue(items);
+    const gaItems = items.map(i=>({item_name: {donation:'One-off donation', membership:'Future Makers', fifty:'50:50 Club', ticket:'Event ticket'}[i.kind]||i.kind, item_category:i.kind, quantity:i.qty||1}));
+    track('begin_checkout', {currency:'GBP', value, items:gaItems});
+    try{ sessionStorage.setItem('mm_pending', JSON.stringify({value, items:gaItems})); }catch(e){}
     const {url} = await post('/api/checkout', Object.assign({items}, extra));
     location.href = url;
   }catch(e){ busy = false; renderModal(); if(page==='give') render(); toast(e.message); }
@@ -1280,7 +1310,7 @@ document.addEventListener('click', e=>{
     if(!h.consent){ toast('Please tick the box to say we can contact you about volunteering.'); return; }
     h.busy = true; renderModal();
     post('/api/volunteer-signup', {role_ids:[...h.roles], name:h.name, email:h.email, phone:h.phone, note:h.note, child_at_school:h.child, consent:h.consent})
-      .then(()=>{ h.busy = false; h.sent = true; renderModal(); loadData(); })
+      .then(()=>{ h.busy = false; h.sent = true; track('volunteer_signup', {method:'event'}); renderModal(); loadData(); })
       .catch(err=>{ h.busy = false; renderModal(); toast(err.message); if(/full|no longer/i.test(err.message)) loadData(); });
     return;
   }
@@ -1293,7 +1323,7 @@ document.addEventListener('click', e=>{
       const name = document.getElementById('rv-name').value, email = document.getElementById('rv-email').value;
       t.disabled = true;
       post('/api/reserve', {event_id:ev.id, name, email, qty})
-        .then(()=>{ closeModal(); toast(`You're booked in for ${ev.title}.`); loadData(); })
+        .then(()=>{ track('reserve_place', {quantity:qty}); closeModal(); toast(`You're booked in for ${ev.title}.`); loadData(); })
         .catch(err=>{ t.disabled = false; toast(err.message); });
     }
     return;
@@ -1304,12 +1334,14 @@ document.addEventListener('click', e=>{
   if(t.id === 'fiftyAdd'){ addToBasket({kind:'fifty', label:'50:50 Club number', meta:data.settings.fifty_term_label, unit_pence:1000, qty:fiftyQty}); fiftyQty = 1; render(); return; }
   if(t.matches('[data-remove]')){ basket.splice(Number(t.dataset.remove),1); saveBasket(); renderModal(); return; }
   if(t.id === 'payBtn'){ payBasket(); return; }
+  if(t.matches('[data-cookie-settings]')){ showCookieBar(true); return; }
+  if(t.matches('[data-cookie]')){ setConsent(t.dataset.cookie === 'yes'); return; }
   if(t.id === 'basketBtn'){ openModal({type:'basket'}); return; }
   if(t.id === 'submitIdea'){
     if(!suggestForm.title.trim()){ toast('Give it a title first.'); return; }
     busy = true; render();
     post('/api/suggest', suggestForm)
-      .then(()=>{ busy=false; suggestSent = true; suggestForm = {title:'', blurb:'', cost:'', who:suggestForm.who}; render(); })
+      .then(()=>{ busy=false; suggestSent = true; track('suggest_idea'); suggestForm = {title:'', blurb:'', cost:'', who:suggestForm.who}; render(); })
       .catch(err=>{ busy=false; render(); toast(err.message); });
     return;
   }
@@ -1321,7 +1353,7 @@ document.addEventListener('click', e=>{
     if(!body.consent){ toast('Please tick the box to say we can contact you about volunteering.'); return; }
     t.disabled = true; t.textContent = 'Sending…';
     post('/api/volunteer', body)
-      .then(()=>{ volunteerSent = true; render(); })
+      .then(()=>{ volunteerSent = true; track('volunteer_signup', {method:'general'}); render(); })
       .catch(err=>{ t.disabled=false; t.textContent='Contact me about volunteering'; toast(err.message); });
     return;
   }
@@ -1393,13 +1425,95 @@ async function loadData(){
   }
 }
 
+/* ---------------- ANALYTICS & COOKIE CONSENT ----------------
+   Google Analytics is only loaded after the visitor says yes. Until then no
+   Google script runs and no analytics cookies are set. */
+const GA_ID = 'G-D7ZNH930GX';
+const CONSENT_KEY = 'mm_cookie_consent';
+const CONSENT_MONTHS = 12;
+const RETURN_SESSION = new URLSearchParams(location.search).get('session_id');
+let gaLoaded = false;
+
+function readConsent(){
+  const c = load(CONSENT_KEY, null);
+  if(!c || typeof c.analytics !== 'boolean') return null;
+  if(Date.now() - (c.at||0) > CONSENT_MONTHS * 30.5 * 864e5) return null; // ask again after a year
+  return c;
+}
+function analyticsAllowed(){ const c = readConsent(); return Boolean(c && c.analytics); }
+
+function loadAnalytics(){
+  if(gaLoaded || !GA_ID) return;
+  gaLoaded = true;
+  window.dataLayer = window.dataLayer || [];
+  window.gtag = function(){ dataLayer.push(arguments); };
+  gtag('consent', 'default', {analytics_storage:'granted', ad_storage:'denied', ad_user_data:'denied', ad_personalization:'denied'});
+  gtag('js', new Date());
+  gtag('set', {allow_google_signals:false, allow_ad_personalization_signals:false});
+  gtag('config', GA_ID, {send_page_view:false, cookie_expires: 60*60*24*395, cookie_flags:'SameSite=Lax;Secure'});
+  const sc = document.createElement('script');
+  sc.async = true; sc.src = 'https://www.googletagmanager.com/gtag/js?id=' + GA_ID;
+  document.head.appendChild(sc);
+}
+function track(name, params){
+  if(!analyticsAllowed()) return;
+  loadAnalytics();
+  gtag('event', name, params || {});
+}
+function trackPage(){
+  const path = '/' + (page === 'home' ? '' : page);
+  track('page_view', {page_location: location.origin + path, page_path: path, page_title: document.title});
+}
+function clearAnalyticsCookies(){
+  const host = location.hostname, parts = host.split('.');
+  const domains = ['', host, '.' + host];
+  for(let i = 1; i < parts.length - 1; i++) domains.push('.' + parts.slice(i).join('.'));
+  document.cookie.split(';').map(c=>c.split('=')[0].trim()).filter(n=>/^_ga/.test(n)).forEach(n=>{
+    domains.forEach(d=>{ document.cookie = `${n}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/${d ? '; domain=' + d : ''}`; });
+  });
+}
+function setConsent(yes){
+  const was = analyticsAllowed();
+  save(CONSENT_KEY, {analytics: yes, at: Date.now()});
+  document.getElementById('cookieRoot').innerHTML = '';
+  if(yes){ loadAnalytics(); trackPage(); toast('Thanks — analytics cookies are on.'); }
+  else {
+    if(window.gtag) gtag('consent', 'update', {analytics_storage:'denied'});
+    clearAnalyticsCookies();
+    toast('Analytics cookies are off.');
+    if(was && gaLoaded){ setTimeout(()=>location.reload(), 900); return; } // fully unload Google's script
+  }
+  const st = document.getElementById('cookieState'); if(st) st.textContent = yes ? 'allowing' : 'not allowing';
+}
+function showCookieBar(force){
+  if(!force && readConsent()) return;
+  document.getElementById('cookieRoot').innerHTML = `
+    <div class="cookie-bar" role="region" aria-label="Cookie choice">
+      <p>Can we use analytics cookies? They help us see how the site is used so we can improve it. No advertising, and you can change your mind any time. <a href="#/privacy">More about cookies</a></p>
+      <div class="cookie-actions">
+        <button class="btn btn-cookie-reject" data-cookie="no">Reject</button>
+        <button class="btn btn-coral" data-cookie="yes">Accept</button>
+      </div>
+    </div>`;
+}
+
+// Back from Stripe: record the purchase in Analytics (once per payment)
+function trackPurchase(){
+  if(!RETURN_SESSION || !analyticsAllowed()) return;
+  let p = null; try{ p = JSON.parse(sessionStorage.getItem('mm_pending')); sessionStorage.removeItem('mm_pending'); }catch(e){}
+  track('purchase', {transaction_id: RETURN_SESSION, currency:'GBP', value: p ? p.value : undefined, items: p ? p.items : undefined});
+}
+
 // A committee login link that lands on the homepage belongs to /admin
 if(/(access_token|refresh_token|error_description)=/.test(location.hash) || /[?&]code=/.test(location.search)){
   location.replace('/admin' + location.search + location.hash);
 } else {
+  if(analyticsAllowed()) loadAnalytics();
   route();
   loadData();
+  trackPurchase();
   confirmPayment();
+  showCookieBar();
 }
 
 // Back from Stripe: record the payment straight away (the webhook is the main route, this is a back-up)
