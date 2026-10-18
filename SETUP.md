@@ -53,7 +53,7 @@ In the Railway service → **Variables**, add:
 | `SUPABASE_ANON_KEY` | Supabase anon public key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service_role key (keep secret) |
 | `STRIPE_SECRET_KEY` | `sk_live_…` |
-| `STRIPE_WEBHOOK_SECRET` | `whsec_…` |
+| `STRIPE_WEBHOOK_SECRET` | `whsec_…` (the live webhook's signing secret; if you have more than one webhook, list each secret separated by commas) |
 | `SITE_URL` | `https://minstermore.org.uk` |
 
 Railway redeploys automatically. Without the Stripe keys, the site still works but shows "email us" instead of payment buttons.

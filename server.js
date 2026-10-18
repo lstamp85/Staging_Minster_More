@@ -25,6 +25,8 @@ const db = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
   : null;
 const STRIPE_KEY = (STRIPE_SECRET_KEY || '').trim().replace(/^["']|["']$/g, '');
 const stripe = STRIPE_KEY ? new Stripe(STRIPE_KEY) : null;
+// Several webhooks (e.g. www and non-www) each have their own secret: allow a comma-separated list
+const WEBHOOK_SECRETS = (STRIPE_WEBHOOK_SECRET || '').split(/[,\s]+/).map(v => v.trim().replace(/^["']|["']$/g, '')).filter(v => v.startsWith('whsec_'));
 if (STRIPE_KEY && !/^(sk|rk)_(live|test)_/.test(STRIPE_KEY)) {
   console.warn('⚠ STRIPE_SECRET_KEY does not look like a secret key (should start sk_live_ or sk_test_).');
 }
@@ -105,12 +107,15 @@ async function ticketsTaken(eventId) {
 // Stripe webhook (needs the raw body, so it's registered before JSON parsing)
 // ---------------------------------------------------------------------
 app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-  if (!stripe || !STRIPE_WEBHOOK_SECRET || !db) return res.status(503).end();
+  if (!stripe || !WEBHOOK_SECRETS.length || !db) return res.status(503).end();
   let event;
-  try {
-    event = stripe.webhooks.constructEvent(req.body, req.headers['stripe-signature'], STRIPE_WEBHOOK_SECRET);
-  } catch (err) {
-    console.error('Webhook signature failed:', err.message);
+  for (const secret of WEBHOOK_SECRETS) {
+    try { event = stripe.webhooks.constructEvent(req.body, req.headers['stripe-signature'], secret); break; } catch { /* try the next one */ }
+  }
+  if (!event) {
+    console.error(`Webhook signature failed: STRIPE_WEBHOOK_SECRET in Railway doesn't match this Stripe webhook's signing secret. ` +
+      `In Stripe → Developers → Webhooks, open the endpoint for ${req.get('host')}/api/stripe-webhook (live mode), reveal its signing secret and paste it into Railway. ` +
+      `(${WEBHOOK_SECRETS.length} secret${WEBHOOK_SECRETS.length === 1 ? '' : 's'} set, starting ${WEBHOOK_SECRETS.map(s => s.slice(0, 10) + '…').join(', ') || 'none'})`);
     return res.status(400).send('Bad signature');
   }
 
@@ -646,7 +651,7 @@ app.post('/api/admin/stripe-sync', async (req, res) => {
     const list = await stripe.webhookEndpoints.list({ limit: 20 });
     webhooks = list.data.map(w => ({ url: w.url, status: w.status }));
   } catch { /* restricted keys often can't read this */ }
-  res.json({ checked: (pending || []).length, recorded, unpaid, failed, lastError, webhookSecretSet: Boolean(STRIPE_WEBHOOK_SECRET), webhooks });
+  res.json({ checked: (pending || []).length, recorded, unpaid, failed, lastError, webhookSecretSet: WEBHOOK_SECRETS.length > 0, webhooks });
 });
 
 // Committee calendar feed and admin calendar link
