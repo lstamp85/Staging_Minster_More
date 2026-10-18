@@ -584,7 +584,8 @@ async function paymentsView(){
   const total = orders.reduce((s,o)=>s+o.total_pence,0);
   return `
     <div class="head"><div><h1>Payments</h1><p>Every completed online payment. Refunds and subscription cancellations are handled in your Stripe dashboard.</p></div>
-      ${orders.length?`<button class="btn btn-ghost" id="exportOrders">Export CSV</button>`:''}</div>
+      <div class="actions"><button class="btn btn-ghost" id="stripeSync">Check Stripe for missing payments</button>${orders.length?`<button class="btn btn-ghost" id="exportOrders">Export CSV</button>`:''}</div></div>
+    <div id="syncResult"></div>
     <div class="stats"><div class="stat"><div class="l">Payments</div><div class="n">${orders.length}</div></div><div class="stat"><div class="l">Taken online</div><div class="n">${money(total)}</div></div></div>
     <div class="card table-wrap">
       ${orders.length?`<table><thead><tr><th>Date</th><th>From</th><th>For</th><th class="r">Total</th></tr></thead><tbody>
@@ -920,6 +921,22 @@ document.addEventListener('click', async e=>{
     if(t.id==='exportFunds'){
       const rows = check(await sb.from('funds').select('*').order('received_on'));
       csv([['Date','From','Source','Gift Aid','Amount (£)'], ...rows.map(f=>[f.received_on, f.label, f.source, f.gift_aid_id?'Yes':'', (f.amount_pence/100).toFixed(2)])], 'minster-more-totaliser.csv'); return;
+    }
+    if(t.id==='stripeSync'){
+      t.disabled = true; t.textContent = 'Checking Stripe…';
+      try{
+        const r = await adminFetch('/api/admin/stripe-sync', {method:'POST'});
+        let msg = r.recorded
+          ? `<b>Found ${r.recorded} payment${r.recorded===1?'':'s'} that hadn't come through.</b> ${r.recorded===1?'It has':'They have'} been added to Payments and the totaliser.`
+          : `<b>Everything is up to date.</b> ${r.checked ? `${r.checked} checkout${r.checked===1?' was':'s were'} started but not paid.` : 'No unfinished checkouts.'}`;
+        if(r.failed) msg += `<br>Couldn't check ${r.failed}: ${esc(r.lastError||'')}`;
+        const fixHint = r.webhooks && !r.webhooks.some(w => w.status==='enabled' && /^https:\/\/www\.minstermore\.org\.uk\/api\/stripe-webhook$/.test(w.url));
+        if(!r.webhookSecretSet) msg += `<br><br><b>Automatic updates aren't set up:</b> <code>STRIPE_WEBHOOK_SECRET</code> is missing in Railway. Until it's added, use this button after payments come in.`;
+        else if(fixHint) msg += `<br><br><b>Check your Stripe webhook address.</b> In Stripe → Developers → Webhooks it should be <code>https://www.minstermore.org.uk/api/stripe-webhook</code> and enabled. Stripe currently has: ${r.webhooks.length ? r.webhooks.map(w=>`<code>${esc(w.url)}</code> (${esc(w.status)})`).join(', ') : 'no webhooks'}.`;
+        await render();
+        $('#syncResult').innerHTML = `<div class="notice">${msg}</div>`;
+      }catch(err){ toast(err.message, true); t.disabled = false; t.textContent = 'Check Stripe for missing payments'; }
+      return;
     }
     if(t.id==='exportOrders'){
       csv([['Date','Name','Email','Items','Gift Aid','Total (£)'], ...window._orders.map(o=>[o.paid_at, o.name, o.email, (o.items||[]).map(i=>`${i.label} x${i.qty}`).join('; '), o.gift_aid?'Yes':'', (o.total_pence/100).toFixed(2)])], 'minster-more-payments.csv'); return;

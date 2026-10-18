@@ -117,6 +117,20 @@ function buildCalendar(events) {
 }
 
 // ------------------------------------------------------------- routes --
+// Returns a checker that only lets signed-in admins through
+function adminCheck(db) {
+  return async function requireAdmin(req, res) {
+    if (!db) { res.status(503).json({ error: 'Not connected' }); return null; }
+    const jwt = (req.get('authorization') || '').replace(/^Bearer\s+/i, '');
+    const { data: u } = jwt ? await db.auth.getUser(jwt) : { data: null };
+    const email = u?.user?.email?.toLowerCase();
+    if (!email) { res.status(401).json({ error: 'Sign in again.' }); return null; }
+    const { data: admin } = await db.from('admins').select('email').ilike('email', email).maybeSingle();
+    if (!admin) { res.status(403).json({ error: 'Not an admin.' }); return null; }
+    return email;
+  };
+}
+
 function calendarRoutes(app, db) {
   app.get('/calendar/:file', async (req, res) => {
     const token = calendarToken();
@@ -132,16 +146,7 @@ function calendarRoutes(app, db) {
   });
 
   // The admin page asks for the feed address. Only signed-in admins get it.
-  async function requireAdmin(req, res) {
-    if (!db) { res.status(503).json({ error: 'Not connected' }); return null; }
-    const jwt = (req.get('authorization') || '').replace(/^Bearer\s+/i, '');
-    const { data: u } = jwt ? await db.auth.getUser(jwt) : { data: null };
-    const email = u?.user?.email?.toLowerCase();
-    if (!email) { res.status(401).json({ error: 'Sign in again.' }); return null; }
-    const { data: admin } = await db.from('admins').select('email').ilike('email', email).maybeSingle();
-    if (!admin) { res.status(403).json({ error: 'Not an admin.' }); return null; }
-    return email;
-  }
+  const requireAdmin = adminCheck(db);
 
   // Email set-up check and test send, from admin → Settings
   app.get('/api/admin/email-status', async (req, res) => {
@@ -289,4 +294,4 @@ function startReminders(db) {
   setInterval(() => runReminders(db).catch(e => console.error('Reminders:', e)), 60 * 60_000).unref();
 }
 
-module.exports = { calendarRoutes, startReminders, buildCalendar, dueReminder, reminderEmail, runReminders, sendEmail, attachRota, whenText, esc };
+module.exports = { adminCheck, calendarRoutes, startReminders, buildCalendar, dueReminder, reminderEmail, runReminders, sendEmail, attachRota, whenText, esc };

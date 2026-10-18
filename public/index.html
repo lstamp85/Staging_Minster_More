@@ -1399,6 +1399,21 @@ if(/(access_token|refresh_token|error_description)=/.test(location.hash) || /[?&
 } else {
   route();
   loadData();
+  confirmPayment();
+}
+
+// Back from Stripe: record the payment straight away (the webhook is the main route, this is a back-up)
+async function confirmPayment(){
+  const id = new URLSearchParams(location.search).get('session_id');
+  if(!id) return;
+  history.replaceState(null, '', location.pathname + location.hash);
+  for(let i = 0; i < 3; i++){
+    try{
+      const r = await fetch('/api/confirm-payment', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({session_id: id})});
+      if(r.ok){ loadData(); return; }
+    }catch(e){}
+    await new Promise(r => setTimeout(r, 2500));
+  }
 }
 </script>
 </body>

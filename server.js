@@ -7,7 +7,7 @@ const path = require('path');
 const express = require('express');
 const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
-const { calendarRoutes, startReminders, sendEmail, whenText } = require('./calendar');
+const { adminCheck, calendarRoutes, startReminders, sendEmail, whenText } = require('./calendar');
 const mail = require('./emails');
 
 const {
@@ -139,21 +139,26 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async
 });
 
 async function handlePaidSession(s) {
-  if (!['paid', 'no_payment_required'].includes(s.payment_status)) return;
+  if (!['paid', 'no_payment_required'].includes(s.payment_status)) return false;
   const orderId = s.client_reference_id;
-  if (!orderId) return;
-  const { data: order } = await db.from('orders').select('*').eq('id', orderId).single();
-  if (!order || order.status === 'paid') return;
+  if (!orderId) return false;
+  const { data: order, error: readErr } = await db.from('orders').select('*').eq('id', orderId).single();
+  if (readErr && readErr.code !== 'PGRST116') throw new Error('Could not read order: ' + readErr.message);
+  if (!order || order.status === 'paid') return false;
 
   const email = s.customer_details?.email || null;
   const name = s.customer_details?.name || null;
   const customer = typeof s.customer === 'string' ? s.customer : s.customer?.id || null;
   const subscription = typeof s.subscription === 'string' ? s.subscription : s.subscription?.id || null;
 
-  await db.from('orders').update({
+  // Claim the order in one step, so the webhook, the thank-you page and the
+  // admin sync can never record the same payment twice.
+  const { data: claimed, error: claimErr } = await db.from('orders').update({
     status: 'paid', paid_at: new Date().toISOString(), stripe_session: s.id,
     email, name, stripe_customer: customer, stripe_subscription: subscription,
-  }).eq('id', orderId);
+  }).eq('id', orderId).neq('status', 'paid').select('id');
+  if (claimErr) throw new Error('Could not mark order paid: ' + claimErr.message);
+  if (!claimed?.length) return false;
 
   const items = order.items || [];
   const donation = items.filter(i => i.kind === 'donation').reduce((t, i) => t + i.unit_pence * i.qty, 0);
@@ -181,7 +186,10 @@ async function handlePaidSession(s) {
   const funds = [];
   if (donation > 0) funds.push({ amount_pence: donation, label: 'Online donation', source: 'online', gift_aid_id: giftAidId, stripe_ref: `${s.id}:donation` });
   if (membership) funds.push({ amount_pence: membership.unit_pence, label: 'Future Makers — first month', source: 'online', gift_aid_id: giftAidId, stripe_ref: `${s.id}:membership` });
-  if (funds.length) await db.from('funds').upsert(funds, { onConflict: 'stripe_ref', ignoreDuplicates: true });
+  if (funds.length) {
+    const { error: fundErr } = await db.from('funds').upsert(funds, { onConflict: 'stripe_ref', ignoreDuplicates: true });
+    if (fundErr) console.error('Could not add payment to totaliser', orderId, fundErr.message);
+  }
 
   if (membership && order.wall_name) {
     await db.from('supporters').insert({ name: order.wall_name, kind: 'future_maker', approved: false });
@@ -214,6 +222,7 @@ async function handlePaidSession(s) {
       console.error('Payment thank-you email failed:', err.message);
     }
   }
+  return true;
 }
 
 async function handleRenewal(inv) {
@@ -567,7 +576,7 @@ app.post('/api/checkout', rateLimit(10), async (req, res) => {
       line_items: lineItems,
       client_reference_id: order.id,
       metadata: { order_id: order.id },
-      success_url: `${base}/?paid=1#/thanks`,
+      success_url: `${base}/?paid=1&session_id={CHECKOUT_SESSION_ID}#/thanks`,
       cancel_url: `${base}/#/${onlyDonation ? 'give' : 'basket'}`,
       ...(hasMembership ? {} : { submit_type: onlyDonation ? 'donate' : 'pay' }),
     };
@@ -590,6 +599,54 @@ app.post('/api/checkout', rateLimit(10), async (req, res) => {
     else if (err.type === 'StripeInvalidRequestError') msg = `Stripe could not start checkout: ${err.message}`;
     res.status(502).json({ error: msg });
   }
+});
+
+// ---------------------------------------------------------------------
+// Back-up to the webhook: confirm a payment straight from Stripe
+// ---------------------------------------------------------------------
+async function confirmSession(id) {
+  const s = await stripe.checkout.sessions.retrieve(id);
+  return { session: s, recorded: await handlePaidSession(s) };
+}
+
+// Called by the thank-you page, so the totaliser updates even if the webhook is late or misconfigured
+app.post('/api/confirm-payment', rateLimit(20), async (req, res) => {
+  const id = str(req.body.session_id, 200);
+  if (!stripe || !db || !/^cs_[A-Za-z0-9_]+$/.test(id || '')) return res.status(400).json({ error: 'Bad request' });
+  try {
+    const { session } = await confirmSession(id);
+    res.json({ paid: ['paid', 'no_payment_required'].includes(session.payment_status) });
+  } catch (err) {
+    console.error('Confirm payment failed:', err.message);
+    res.status(502).json({ error: 'Could not confirm yet' });
+  }
+});
+
+// Admin → Payments → "Check Stripe": picks up any payment the webhook missed
+const requireAdmin = adminCheck(db);
+app.post('/api/admin/stripe-sync', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  if (!stripe) return res.status(400).json({ error: 'STRIPE_SECRET_KEY is not set in Railway.' });
+  const since = new Date(Date.now() - 45 * 864e5).toISOString();
+  const { data: pending, error } = await db.from('orders').select('id,stripe_session')
+    .eq('status', 'pending').not('stripe_session', 'is', null).gte('created_at', since).limit(200);
+  if (error) return res.status(500).json({ error: error.message });
+  let recorded = 0, unpaid = 0, failed = 0, lastError = null;
+  for (const o of pending || []) {
+    try {
+      const { session, recorded: r } = await confirmSession(o.stripe_session);
+      if (r) recorded++;
+      else if (session.status === 'expired') { await db.from('orders').update({ status: 'expired' }).eq('id', o.id).eq('status', 'pending'); unpaid++; }
+      else unpaid++;
+    } catch (err) { failed++; lastError = err.message; }
+  }
+  // Webhook health, where the key is allowed to see it
+  let webhooks = null;
+  try {
+    const list = await stripe.webhookEndpoints.list({ limit: 20 });
+    webhooks = list.data.map(w => ({ url: w.url, status: w.status }));
+  } catch { /* restricted keys often can't read this */ }
+  res.json({ checked: (pending || []).length, recorded, unpaid, failed, lastError, webhookSecretSet: Boolean(STRIPE_WEBHOOK_SECRET), webhooks });
 });
 
 // Committee calendar feed and admin calendar link

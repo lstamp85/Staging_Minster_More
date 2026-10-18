@@ -37,7 +37,7 @@ Don't upload `node_modules` (Railway installs it).
 1. Create a Stripe account for the charity (stripe.com). Apply for Stripe's charity pricing by emailing them your charity number (516332).
 2. **Developers → API keys**: copy the **Secret key** (`sk_live_…`). Use the test key (`sk_test_…`) first if you want to try a dummy payment.
 3. **Developers → Webhooks → Add endpoint**:
-   - URL: `https://minstermore.org.uk/api/stripe-webhook`
+   - URL: `https://www.minstermore.org.uk/api/stripe-webhook` (use the www address: Stripe won't follow a redirect from the bare domain)
    - Events: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.expired`, `invoice.paid`
    - Copy the **Signing secret** (`whsec_…`).
 4. **Settings → Customer emails**: turn on receipts for successful payments.
