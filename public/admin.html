@@ -395,19 +395,20 @@ async function ideasView(){
   const vm = Object.fromEntries(votes.map(v=>[v.idea_id, v.votes]));
   const row = editing ? ideas.find(i=>i.id===editing) : null;
   return `
-    <div class="head"><div><h1>Suggestions</h1><p>New ideas wait here until approved. Approved ideas appear on the website for voting.</p></div></div>
+    <div class="head"><div><h1>Suggestions</h1><p>Fundraising ideas and things to fund. New ones wait here until approved; approved ideas appear on the website for voting.</p></div></div>
     <div class="seg">${['pending','approved','rejected','archived'].map(s=>`<button class="${s===status?'on':''}" data-sub="${s}">${s[0].toUpperCase()+s.slice(1)}${s==='pending'&&counts.ideas?` (${counts.ideas})`:''}</button>`).join('')}</div>
     ${row ? `<div class="card"><h2>Edit suggestion</h2><div class="form">
         ${fieldHTML({k:'title',label:'Title',type:'text',req:true,full:true},row)}
         ${fieldHTML({k:'blurb',label:'Description',type:'textarea',full:true},row)}
-        ${fieldHTML({k:'cost_pence',label:'Rough cost',type:'money'},row)}
-        ${fieldHTML({k:'who',label:'Suggested by',type:'select',options:['Student','Parent / carer','Staff']},row)}
+        ${fieldHTML({k:'cost_pence',label:row.kind==='raise'?'Could raise about':'Rough cost',type:'money'},row)}
+        ${fieldHTML({k:'kind',label:'Type',type:'select',options:['fund','raise'],labels:{fund:'Something to fund',raise:'Fundraising idea'}},row)}
+        ${fieldHTML({k:'who',label:'Suggested by',type:'select',options:['Student','Parent / carer','Staff','Local business','Community member']},row)}
       </div><div class="form-foot"><button class="btn btn-coral" data-save-idea="${row.id}">Save</button><button class="btn btn-ghost" data-cancel>Cancel</button></div></div>` : ''}
     <div class="card table-wrap">
-      ${ideas.length ? `<table><thead><tr><th>Idea</th><th>From</th><th class="r">Cost</th><th class="r">Votes</th><th></th></tr></thead><tbody>
+      ${ideas.length ? `<table><thead><tr><th>Idea</th><th>Type</th><th>From</th><th class="r">£</th><th class="r">Votes</th><th></th></tr></thead><tbody>
         ${ideas.map(i=>`<tr>
           <td><b>${esc(i.title)}</b>${i.blurb?`<br><span class="muted">${esc(i.blurb)}</span>`:''}<br><span class="muted">${d(i.created_at)}</span></td>
-          <td>${esc(i.who)}</td><td class="r">${i.cost_pence?money(i.cost_pence):'—'}</td><td class="r"><b>${vm[i.id]||0}</b></td>
+          <td>${i.kind==='raise'?'<span class="badge" style="white-space:nowrap">Fundraising idea</span>':'<span class="muted" style="white-space:nowrap">To fund</span>'}</td><td>${esc(i.who)}</td><td class="r">${i.cost_pence?(i.kind==='raise'?'raise ':'')+money(i.cost_pence):'—'}</td><td class="r"><b>${vm[i.id]||0}</b></td>
           <td><div class="actions">
             ${status!=='approved'?`<button class="btn btn-ok btn-sm" data-idea="${i.id}:approved">Approve</button>`:''}
             ${status==='pending'?`<button class="btn btn-ghost btn-sm" data-idea="${i.id}:rejected">Reject</button>`:''}
@@ -829,7 +830,7 @@ document.addEventListener('click', async e=>{
     }
     if(t.dataset.saveIdea){
       const title = $('#fld-title').value.trim(); if(!title) return toast('Title is required.', true);
-      check(await sb.from('ideas').update({title, blurb:$('#fld-blurb').value.trim()||null, cost_pence:toPence($('#fld-cost_pence').value)||null, who:$('#fld-who').value}).eq('id',t.dataset.saveIdea));
+      check(await sb.from('ideas').update({title, blurb:$('#fld-blurb').value.trim()||null, cost_pence:toPence($('#fld-cost_pence').value)||null, who:$('#fld-who').value, ...($('#fld-kind')?{kind:$('#fld-kind').value}:{})}).eq('id',t.dataset.saveIdea));
       toast('Saved.'); editing=null; render(); return;
     }
     if(t.dataset.attendees){ go('attendees', t.dataset.attendees); return; }

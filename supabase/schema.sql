@@ -93,6 +93,7 @@ create table public.ideas (
   blurb       text,
   cost_pence  integer,
   who         text not null default 'Parent / carer',
+  kind        text not null default 'fund' check (kind in ('fund','raise')),
   status      text not null default 'pending'
               check (status in ('pending','approved','rejected','archived')),
   created_at  timestamptz not null default now()

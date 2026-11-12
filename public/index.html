@@ -171,6 +171,28 @@
   .note{font-size:13.5px;color:var(--ink-soft);line-height:1.55;}
 
   /* SUGGEST */
+  .idea-prompts{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:28px 0 40px;}
+  .idea-prompt{display:flex;flex-direction:column;align-items:flex-start;gap:10px;text-align:left;font:inherit;color:inherit;cursor:pointer;border-radius:20px;padding:24px;background:var(--paper, #fff);transition:border-color .15s, box-shadow .15s;}
+  .idea-prompt:hover{border-color:var(--ink);}
+  .idea-prompt.on{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);}
+  .idea-prompt:focus-visible{outline:3px solid var(--coral);outline-offset:2px;}
+  .idea-prompt-title{font-family:'Archivo',sans-serif;font-size:24px;font-weight:800;letter-spacing:-0.02em;line-height:1.15;}
+  .idea-prompt-text{font-size:15px;line-height:1.55;color:var(--ink-mid);}
+  .idea-prompt-cta{margin-top:auto;font-weight:700;font-size:14px;text-decoration:underline;text-underline-offset:3px;}
+  .kind-toggle{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .kind-toggle button{font:inherit;font-size:14px;font-weight:700;padding:11px 10px;border-radius:12px;border:1.5px solid var(--line, rgba(0,0,0,.15));background:transparent;color:inherit;cursor:pointer;line-height:1.25;}
+  .kind-toggle button.on{background:var(--ink);border-color:var(--ink);color:var(--on-ink, #fff);}
+  .kind-toggle button:focus-visible{outline:3px solid var(--coral);outline-offset:2px;}
+  .form-panel .kind-toggle button{border-color:rgba(255,255,255,.35);color:inherit;}
+  .form-panel .kind-toggle button.on{background:var(--coral);border-color:var(--coral);color:var(--ink);}
+  .field-label{display:block;font-weight:700;font-size:14px;margin-bottom:6px;}
+  .idea-filter{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px;}
+  .idea-filter button{font:inherit;font-size:14px;font-weight:700;padding:8px 14px;border-radius:999px;border:1.5px solid var(--line, rgba(0,0,0,.15));background:transparent;color:inherit;cursor:pointer;}
+  .idea-filter button span{opacity:.6;font-weight:600;margin-left:2px;}
+  .idea-filter button.on{background:var(--ink);border-color:var(--ink);color:var(--on-ink, #fff);}
+  .chip-line{background:transparent;border:1px solid var(--line, rgba(0,0,0,.18));}
+  @media (max-width:760px){ .idea-prompts{grid-template-columns:1fr;gap:12px;margin:20px 0 28px;} .idea-prompt{padding:18px;} .idea-prompt-title{font-size:20px;} }
+
   .step-card{border-radius:20px;padding:24px;}
   .step-num{font-family:'Archivo',sans-serif;font-weight:800;font-size:24px;color:var(--coral-dark);margin-bottom:8px;}
   .two-col{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,420px);gap:32px;align-items:start;}
@@ -472,7 +494,14 @@ let voted = new Set(load('mm_voted', []));
 let voter = load('mm_voter', null);
 if(!voter){ voter = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now()); save('mm_voter', voter); }
 let fiftyQty = 1;
-let suggestForm = {title:'', blurb:'', cost:'', who:'Parent / carer'};
+let suggestForm = {kind:'raise', title:'', blurb:'', cost:'', who:'Parent / carer'};
+let ideaFilter = 'all';
+const IDEA_KIND = {raise:'Fundraising idea', fund:'Something to fund'};
+const ideaKind = i => i.kind === 'raise' ? 'raise' : 'fund';
+function ideaCost(i){
+  if(!i.cost_pence) return ideaKind(i)==='raise' ? '' : 'Cost to be estimated';
+  return (ideaKind(i)==='raise' ? 'Could raise about ' : 'About ') + money(i.cost_pence);
+}
 let suggestSent = false;
 let volunteerSent = false;
 let donation = {amount:2500, other:'', giftAid:false, ga:{full_name:'', house:'', postcode:''}};
@@ -561,7 +590,7 @@ function ideaCard(idea){
   const v = voted.has(idea.id);
   return `
     <div class="hairline-card idea-card">
-      <div><span class="chip chip-cyan">${esc(idea.who)}</span></div>
+      <div><span class="chip ${ideaKind(idea)==='raise'?'chip-coral':'chip-ink'}">${IDEA_KIND[ideaKind(idea)]}</span> <span class="chip chip-cyan">${esc(idea.who)}</span></div>
       <div class="idea-title">${esc(idea.title)}</div>
       <p class="idea-blurb">${esc(idea.blurb || '')}</p>
       <div class="vote-row">
@@ -683,7 +712,7 @@ function pageHome(){
           <a class="btn btn-ghost btn-small" href="#/suggest">${ideas.length?'See all and vote':'Suggest an idea'}</a>
         </div>
         ${ideas.length ? `<div class="grid3">${ideas.map(ideaCard).join('')}</div>`
-          : emptyState('No ideas up for vote yet', 'Be the first — students, families and staff can all suggest what Minster needs.')}
+          : emptyState('No ideas up for vote yet', 'Be the first — suggest a way to raise money, or something Minster needs.')}
       </div>
     </section>
 
@@ -901,56 +930,79 @@ function pageMoney(){
 }
 
 function pageSuggest(){
-  const ideas = data.ideas;
+  const all = data.ideas;
+  const ideas = ideaFilter==='all' ? all : all.filter(i=>ideaKind(i)===ideaFilter);
+  const n = k => all.filter(i=>ideaKind(i)===k).length;
+  const raise = suggestForm.kind === 'raise';
   return `
     <div class="wrap page-head">
       <div class="eyebrow">Suggest &amp; vote</div>
-      <h1>You decide what we fund.</h1>
-      <p class="intro">Students, parents, carers and staff all get an equal vote. One vote per idea.</p>
+      <h1>Your ideas. Your vote.</h1>
+      <p class="intro">Now we need your ideas — both for raising money and for spending it well. Students, parents, carers and staff all get an equal vote.</p>
     </div>
     <div class="wrap">
-      <div class="grid3" style="margin:28px 0 40px;">
-        <div class="hairline-card step-card"><div class="step-num">01</div><div style="font-weight:700;margin-bottom:6px;">Suggest it</div><div class="note" style="color:var(--ink-mid);">Tell us what Minster needs and roughly what it would cost.</div></div>
-        <div class="hairline-card step-card"><div class="step-num">02</div><div style="font-weight:700;margin-bottom:6px;">Vote on it</div><div class="note" style="color:var(--ink-mid);">Students vote on equal terms with adults.</div></div>
-        <div class="hairline-card step-card"><div class="step-num">03</div><div style="font-weight:700;margin-bottom:6px;">See it happen</div><div class="note" style="color:var(--ink-mid);">We publish every funding priority and what the money paid for.</div></div>
+      <div class="idea-prompts">
+        <button class="hairline-card idea-prompt ${raise?'on':''}" data-idea-kind="raise">
+          <span class="chip chip-coral">Raise</span>
+          <span class="idea-prompt-title">How could we raise funds?</span>
+          <span class="idea-prompt-text">Share your suggestions for events, challenges, business partnerships or other fundraising activities.</span>
+          <span class="idea-prompt-cta">Suggest a fundraising idea →</span>
+        </button>
+        <button class="hairline-card idea-prompt ${raise?'':'on'}" data-idea-kind="fund">
+          <span class="chip chip-ink">Fund</span>
+          <span class="idea-prompt-title">What could we fund?</span>
+          <span class="idea-prompt-text">Tell us about equipment, experiences, clubs or improvements that would make a difference to school life.</span>
+          <span class="idea-prompt-cta">Suggest something to fund →</span>
+        </button>
       </div>
 
       <div class="two-col">
         <div>
+          ${all.length ? `<div class="seg idea-filter" role="group" aria-label="Show ideas">
+            ${[['all','All ideas',all.length],['raise','Raising money',n('raise')],['fund','Things to fund',n('fund')]].map(([k,l,c])=>`<button class="${ideaFilter===k?'on':''}" data-idea-filter="${k}" aria-pressed="${ideaFilter===k}">${l} <span>${c}</span></button>`).join('')}
+          </div>` : ''}
           ${ideas.length ? ideas.map(idea=>{
-            const v = voted.has(idea.id);
+            const v = voted.has(idea.id), cost = ideaCost(idea), k = ideaKind(idea);
             return `
             <div class="hairline-card suggest-row">
               <button class="big-vote ${v?'voted':''}" data-vote="${idea.id}" aria-label="Vote for ${esc(idea.title)}">
                 <span>▲</span><span class="num">${idea.votes}</span>
               </button>
               <div>
-                <span class="chip chip-cyan">${esc(idea.who)}</span>
-                <span class="chip chip-ink" style="margin-left:6px;">${idea.cost_pence?('About '+money(idea.cost_pence)):'Cost to be estimated'}</span>
+                <span class="chip ${k==='raise'?'chip-coral':'chip-ink'}">${IDEA_KIND[k]}</span>
+                <span class="chip chip-cyan" style="margin-left:6px;">${esc(idea.who)}</span>
+                ${cost?`<span class="chip chip-line" style="margin-left:6px;">${cost}</span>`:''}
                 <div class="suggest-title">${esc(idea.title)}</div>
                 <p class="idea-blurb" style="margin-bottom:0;">${esc(idea.blurb || '')}</p>
               </div>
             </div>`;
-          }).join('') : emptyState('No ideas up for vote yet', 'Post the first one — it\'ll appear here once the committee has checked it.')}
-          <p class="note" style="margin-top:18px;">Community voting helps set our funding priorities. The charity's trustees keep final responsibility for approving spending.</p>
+          }).join('') : all.length
+            ? emptyState(ideaFilter==='raise'?'No fundraising ideas yet':'Nothing to fund suggested yet', 'Be the first — post yours and it\'ll appear here once the committee has checked it.')
+            : emptyState('No ideas up for vote yet', 'Post the first one — it\'ll appear here once the committee has checked it.')}
+          <p class="note" style="margin-top:18px;">Community voting helps set our priorities. The charity's trustees keep final responsibility for approving fundraising and spending.</p>
         </div>
 
-        <div class="form-panel">
+        <div class="form-panel" id="ideaForm">
           ${suggestSent ? `
             <h3>Thanks — idea received.</h3>
             <p style="font-size:15px;line-height:1.55;margin:0 0 18px;">The committee checks every suggestion before it goes up for vote. Yours should appear within a few days.</p>
             <button class="btn btn-coral" id="suggestAgain" style="width:100%;">Suggest another</button>
           ` : `
           <h3>Post your idea</h3>
-          <div class="field"><label for="sf-title">What should we fund?</label>
-            <input id="sf-title" type="text" maxlength="120" value="${esc(suggestForm.title)}" placeholder="e.g. New basketball hoops"></div>
-          <div class="field"><label for="sf-blurb">What would it make possible?</label>
-            <textarea id="sf-blurb" rows="3" maxlength="600" placeholder="A sentence or two is plenty">${esc(suggestForm.blurb)}</textarea></div>
-          <div class="field"><label for="sf-cost">Rough cost</label>
+          <div class="field"><span class="field-label" id="sf-kind-label">My idea is…</span>
+            <div class="kind-toggle" role="radiogroup" aria-labelledby="sf-kind-label">
+              <button type="button" role="radio" aria-checked="${raise}" class="${raise?'on':''}" data-idea-kind="raise">A way to raise money</button>
+              <button type="button" role="radio" aria-checked="${!raise}" class="${raise?'':'on'}" data-idea-kind="fund">Something to fund</button>
+            </div></div>
+          <div class="field"><label for="sf-title">${raise?'What’s your fundraising idea?':'What should we fund?'}</label>
+            <input id="sf-title" type="text" maxlength="120" value="${esc(suggestForm.title)}" placeholder="${raise?'e.g. Sponsored walk round Southwell':'e.g. New basketball hoops'}"></div>
+          <div class="field"><label for="sf-blurb">${raise?'How would it work?':'What would it make possible?'}</label>
+            <textarea id="sf-blurb" rows="3" maxlength="600" placeholder="${raise?'Who could take part, or a business that might get involved':'A sentence or two is plenty'}">${esc(suggestForm.blurb)}</textarea></div>
+          <div class="field"><label for="sf-cost">${raise?'Could raise about':'Rough cost'}</label>
             <div class="field-cost"><span>£</span><input id="sf-cost" type="number" min="0" step="50" value="${esc(suggestForm.cost)}" placeholder="Optional"></div>
-            <div class="field-note">A guess is fine — we cost it properly.</div></div>
+            <div class="field-note">${raise?'A guess is fine — or leave it blank.':'A guess is fine — we cost it properly.'}</div></div>
           <div class="field"><label for="sf-who">I'm a</label>
-            <select id="sf-who">${['Student','Parent / carer','Staff'].map(w=>`<option ${suggestForm.who===w?'selected':''}>${w}</option>`).join('')}</select></div>
+            <select id="sf-who">${['Student','Parent / carer','Staff','Local business','Community member'].map(w=>`<option ${suggestForm.who===w?'selected':''}>${w}</option>`).join('')}</select></div>
           <button class="btn btn-coral" id="submitIdea" style="width:100%;" ${busy?'disabled':''}>${busy?'Sending…':'Post my idea'}</button>
           `}
         </div>
@@ -1341,11 +1393,18 @@ document.addEventListener('click', e=>{
     if(!suggestForm.title.trim()){ toast('Give it a title first.'); return; }
     busy = true; render();
     post('/api/suggest', suggestForm)
-      .then(()=>{ busy=false; suggestSent = true; track('suggest_idea'); suggestForm = {title:'', blurb:'', cost:'', who:suggestForm.who}; render(); })
+      .then(()=>{ busy=false; suggestSent = true; track('suggest_idea'); suggestForm = {kind:suggestForm.kind, title:'', blurb:'', cost:'', who:suggestForm.who}; render(); })
       .catch(err=>{ busy=false; render(); toast(err.message); });
     return;
   }
   if(t.id === 'suggestAgain'){ suggestSent = false; render(); return; }
+  if(t.matches('[data-idea-kind]')){
+    const fromPrompt = t.classList.contains('idea-prompt');
+    suggestForm.kind = t.dataset.ideaKind; suggestSent = false; render();
+    if(fromPrompt){ const f = document.getElementById('ideaForm'); if(f){ f.scrollIntoView({behavior:'smooth', block:'start'}); setTimeout(()=>document.getElementById('sf-title')?.focus({preventScroll:true}), 350); } }
+    return;
+  }
+  if(t.matches('[data-idea-filter]')){ ideaFilter = t.dataset.ideaFilter; render(); return; }
   if(t.id === 'volunteerSubmit'){
     const v = id => document.getElementById(id);
     const body = {name:v('vf-name').value, email:v('vf-email').value, phone:v('vf-phone').value, help:v('vf-help').value, child_at_school:v('vf-child').checked, consent:v('vf-consent').checked};

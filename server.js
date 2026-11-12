@@ -265,7 +265,7 @@ app.get('/api/site', async (req, res) => {
       db.from('settings').select('year_label,target_pence,easyfundraising_url,coop_url,fifty_term_label').eq('id', 1).single(),
       db.from('funds').select('amount_pence'),
       db.from('pots').select('*').order('sort').order('created_at'),
-      db.from('ideas').select('id,title,blurb,cost_pence,who,created_at').eq('status', 'approved'),
+      db.from('ideas').select('*').eq('status', 'approved'),
       db.from('votes').select('idea_id'),
       db.from('events').select('*').eq('published', true).gte('starts_at', since).order('starts_at'),
       db.from('news').select('id,title,body,published_on').order('published_on', { ascending: false }).limit(6),
@@ -320,7 +320,7 @@ app.get('/api/site', async (req, res) => {
       },
       raised_pence: funds.data.reduce((s, f) => s + f.amount_pence, 0),
       pots: potsOut,
-      ideas: ideas.data.map(i => ({ ...i, votes: voteMap[i.id] || 0 })).sort((a, b) => b.votes - a.votes),
+      ideas: ideas.data.map(i => ({ id: i.id, title: i.title, blurb: i.blurb, cost_pence: i.cost_pence, who: i.who, kind: i.kind || 'fund', created_at: i.created_at, votes: voteMap[i.id] || 0 })).sort((a, b) => b.votes - a.votes),
       events: evs,
       news: news.data,
       committee: committee.data,
@@ -350,17 +350,26 @@ app.post('/api/vote', rateLimit(30), async (req, res) => {
   res.json({ ok: true });
 });
 
+const IDEA_WHO = ['Student', 'Parent / carer', 'Staff', 'Local business', 'Community member'];
 app.post('/api/suggest', rateLimit(5), async (req, res) => {
   if (needDb(res)) return;
   const title = str(req.body.title, 120);
   const blurb = str(req.body.blurb, 600);
-  const who = ['Student', 'Parent / carer', 'Staff'].includes(req.body.who) ? req.body.who : 'Parent / carer';
+  const who = IDEA_WHO.includes(req.body.who) ? req.body.who : 'Parent / carer';
+  const kind = req.body.kind === 'raise' ? 'raise' : 'fund';
   const costPounds = int(req.body.cost);
   if (!title) return res.status(400).json({ error: 'Give it a title first.' });
-  const { error } = await db.from('ideas').insert({
-    title, blurb: blurb || null, who, status: 'pending',
+  const row = {
+    title, blurb: blurb || null, who, kind, status: 'pending',
     cost_pence: Number.isFinite(costPounds) && costPounds > 0 ? Math.min(costPounds, 1_000_000) * 100 : null,
-  });
+  };
+  let { error } = await db.from('ideas').insert(row);
+  // Before the 2026-11-12 migration runs there's no "kind" column: save without it
+  if (error && /kind/.test(error.message || '')) {
+    delete row.kind;
+    if (kind === 'raise') row.title = ('Fundraising idea: ' + title).slice(0, 140);
+    ({ error } = await db.from('ideas').insert(row));
+  }
   if (error) return res.status(500).json({ error: 'Could not save your idea.' });
   res.json({ ok: true });
 });
