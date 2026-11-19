@@ -108,6 +108,7 @@
   .toast.err{background:var(--bad);}
   .winner{font-family:'Archivo',sans-serif;font-size:20px;font-weight:800;}
   .link-btn{color:var(--coral-dark);text-align:left;padding:0;text-decoration:underline;text-underline-offset:2px;}
+  .raffle-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;}
   .thumb{width:36px;height:36px;border-radius:50%;object-fit:cover;background:var(--tint);}
 
   @media (max-width:860px){
@@ -268,11 +269,50 @@ const TABLES = {
     cols:[['', r=>r.logo_url?`<img src="${esc(r.logo_url)}" alt="" style="max-height:36px;max-width:80px;object-fit:contain;">`:''], ['Name', r=>`<b>${esc(r.name)}</b>${r.note?`<br><span class="muted">${esc(r.note)}</span>`:''}`], ['Type', r=>`${KIND_LABEL[r.kind]}${r.tier?` · ${esc(r.tier)}`:''}`], ['', r=>r.approved?'':'<span class="chip coral">Awaiting approval</span>']],
     extra: r=> r.approved ? '' : `<button class="btn btn-ok btn-sm" data-approve-supporter="${r.id}">Approve</button>`,
   },
+  raffles: {
+    title:'Raffle details', single:'raffle', order:[['draw_at',false]],
+    intro:'The details here appear on every ticket, as the Gambling Act requires.',
+    fields:[
+      {k:'title', label:'Raffle name', type:'text', req:true, full:true, hint:'e.g. Christmas Raffle 2026'},
+      {k:'blurb', label:'Short description', type:'textarea', full:true, hint:'One or two sentences for the top of the raffle page.'},
+      {k:'ticket_price_pence', label:'Ticket price', type:'money', req:true, def:200, hint:'Every ticket must cost the same, so no bundle deals.'},
+      {k:'draw_at', label:'Draw date and time', type:'datetime', req:true, hint:'Ticket sales stop at this time.'},
+      {k:'max_tickets', label:'Maximum tickets', type:'number', hint:'Optional. Leave blank for no limit.'},
+      {k:'min_age', label:'Minimum age', type:'select', options:['16','18'], labels:{'16':'16 or over (the legal minimum)','18':'18 or over (e.g. if a prize is alcohol)'}, def:'16'},
+      {type:'section', label:'Legal details for tickets', hint:'Online raffles need a small society lottery registration with Newark &amp; Sherwood District Council. Tickets must name the promoter and their address.'},
+      {k:'promoter_name', label:'Promoter (committee member responsible)', type:'text', req:true},
+      {k:'promoter_address', label:'Promoter’s address', type:'text', req:true, full:true, hint:'The school address is fine, e.g. The Minster School, Nottingham Road, Southwell NG25 0LG'},
+      {k:'registration', label:'Registration', type:'text', full:true, hint:'e.g. Registered with Newark &amp; Sherwood District Council, reference SSL/123'},
+    ],
+    cols:[['Raffle', r=>`<b>${esc(r.title)}</b>`], ['Draw', r=>d(r.draw_at,true)]],
+  },
+  raffle_prizes: {
+    title:'Raffle prize', single:'prize', order:[['sort',true]],
+    filter: q => (editing && editing!=='new') ? q.eq('id', editing) : q.eq('raffle_id', (window._raffle && window._raffle.id) || '00000000-0000-0000-0000-000000000000'),
+    intro:'Prizes are drawn in the order shown, so put the biggest first.',
+    fields:[
+      {k:'title', label:'Prize', type:'text', req:true, full:true, hint:'e.g. Afternoon tea for two'},
+      {k:'description', label:'Details', type:'textarea', full:true},
+      {k:'value_pence', label:'Value', type:'money', hint:'Optional. No single prize can be worth more than £25,000.'},
+      {k:'sort', label:'Order', type:'number', hint:'1 = first prize drawn'},
+      {k:'image_url', label:'Prize photo', type:'file', folder:'raffle', accept:'image/*', full:true, hint:'Optional. Without one, the business logo is shown.'},
+      {type:'section', label:'Donated by'},
+      {k:'sponsor_name', label:'Business name', type:'text'},
+      {k:'sponsor_url', label:'Website', type:'url', hint:'Include https://'},
+      {k:'sponsor_logo_url', label:'Logo', type:'file', folder:'raffle', accept:'image/*', full:true, hint:'PNG with a transparent or white background works best.'},
+      {k:'contact_name', label:'Contact name', type:'text', hint:'Committee only'},
+      {k:'contact_email', label:'Contact email', type:'text', hint:'Committee only'},
+      {k:'approved', label:'Show on the website', type:'checkbox', def:true},
+      {k:'winner_display', label:'Winner name to show (optional)', type:'text', full:true, hint:'Only shown once results are published, e.g. “Sarah, Year 9 parent”. Leave blank to show just the ticket number.'},
+    ],
+    cols:[['Prize', r=>`<b>${esc(r.title)}</b>`]],
+  },
 };
 
 function fieldHTML(f, row){
   if(f.type==='section') return `<div class="full" style="border-top:1px solid var(--hairline);padding-top:18px;margin-top:6px;"><h3 style="font-size:16px;">${f.label}</h3>${f.hint?`<div class="muted" style="margin-top:4px;">${f.hint}</div>`:''}</div>`;
   let v = row ? row[f.k] : (typeof f.def === 'function' ? f.def() : f.def);
+  if(f.type==='select' && typeof v === 'number') v = String(v);
   const id = 'fld-'+f.k;
   let input;
   if(f.type==='textarea') input = `<textarea id="${id}">${esc(v)}</textarea>`;
@@ -309,6 +349,7 @@ async function readForm(t, row){
       } else if(!row){ out[f.k] = null; }
     }
     else out[f.k] = el.value.trim() || null;
+    if(f.k==='min_age' && out[f.k]) out[f.k] = Number(out[f.k]);
     if(f.req && (out[f.k]==null || out[f.k]==='') && !(f.type==='file' && row && row[f.k])) throw new Error(`${f.label} is required.`);
     if(f.type==='money' && out[f.k]===null) throw new Error(`${f.label} must be a number.`);
   }
@@ -631,6 +672,100 @@ async function fiftyView(){
     </div>`;
 }
 
+/* ---------------- RAFFLE ---------------- */
+const RAFFLE_STATUS = {draft:['Draft','Not on the website yet'], live:['On sale',''], closed:['Sales closed','Ready to draw'], drawn:['Drawn','']};
+function rangeText(nums){ const n=[...nums].sort((a,b)=>a-b), out=[]; for(let i=0;i<n.length;i++){ let j=i; while(j+1<n.length&&n[j+1]===n[j]+1) j++; out.push(j>i?`${n[i]}–${n[j]}`:String(n[i])); i=j; } return out.join(', '); }
+
+async function raffleView(){
+  const [raffles, offers] = await Promise.all([
+    sb.from('raffles').select('*').order('draw_at',{ascending:false}).then(check),
+    sb.from('raffle_prizes').select('*').eq('approved',false).order('created_at',{ascending:false}).then(check),
+  ]);
+  const r = raffles.find(x=>x.id===sub) || raffles.find(x=>x.status!=='drawn') || raffles[0];
+  window._raffle = r || null;
+  const offersHTML = offers.length ? `
+    <div class="card"><h2>Prize offers from businesses <span class="badge">${offers.length}</span></h2>
+      <p class="muted" style="margin:6px 0 14px;">Sent through the form on the raffle page. Check the details, then add them to ${r?'this':'a'} raffle.</p>
+      <div class="table-wrap"><table><thead><tr><th></th><th>Prize</th><th>From</th><th class="r">Value</th><th></th></tr></thead><tbody>
+      ${offers.map(o=>`<tr><td>${o.sponsor_logo_url?`<img src="${esc(o.sponsor_logo_url)}" alt="" style="width:64px;height:36px;object-fit:contain;">`:''}</td>
+        <td><b>${esc(o.title)}</b>${o.description?`<br><span class="muted">${esc(o.description)}</span>`:''}</td>
+        <td><b>${esc(o.sponsor_name||'')}</b><br><span class="muted">${esc(o.contact_name||'')} · <a href="mailto:${esc(o.contact_email)}">${esc(o.contact_email||'')}</a>${o.contact_phone?` · ${esc(o.contact_phone)}`:''}</span>${o.sponsor_url?`<br><a href="${esc(o.sponsor_url)}" target="_blank" rel="noopener">${esc(o.sponsor_url.replace(/^https?:\/\//,''))}</a>`:''}</td>
+        <td class="r">${o.value_pence?money(o.value_pence):'—'}</td>
+        <td><div class="actions">${r?`<button class="btn btn-ok btn-sm" data-offer-accept="${o.id}">Add to raffle</button>`:''}<button class="btn btn-ghost btn-sm" data-prize-edit="${o.id}">Edit</button><button class="btn-danger" data-del="raffle_prizes:${o.id}">Delete</button></div></td></tr>`).join('')}
+      </tbody></table></div></div>` : '';
+
+  if(!r) return `
+    <div class="head"><div><h1>Raffle</h1><p>Sell digital raffle tickets, with prizes donated by local businesses. Buyers get numbered tickets by email, and the draw is done here.</p></div>
+      <button class="btn btn-coral" data-raffle-new>Set up a raffle</button></div>
+    <div class="notice"><b>Before you start:</b> online raffles need a <b>small society lottery registration</b> with Newark &amp; Sherwood District Council (it’s cheap and renews yearly), and Stripe must agree to raffle payments on our account. Every ticket must cost the same, and players must be 16 or over.</div>
+    ${offersHTML}`;
+
+  const [prizes, tickets] = await Promise.all([
+    sb.from('raffle_prizes').select('*').eq('raffle_id',r.id).eq('approved',true).order('sort').order('created_at').then(check),
+    sb.from('raffle_tickets').select('*').eq('raffle_id',r.id).order('number').then(check),
+  ]);
+  window._raffleTickets = tickets;
+  const sold = tickets.length, raised = sold * r.ticket_price_pence;
+  const prizeValue = prizes.reduce((t,p)=>t+(p.value_pence||0),0);
+  const salesOver = new Date(r.draw_at) <= new Date();
+  const st = r.status==='live' && salesOver ? 'closed' : r.status;
+  const byNumber = Object.fromEntries(tickets.map(t=>[t.number,t]));
+  const buyers = {}; tickets.forEach(t=>{ const k=(t.email||'')+'|'+(t.name||''); (buyers[k] = buyers[k] || {name:t.name, email:t.email, nums:[], at:t.created_at}).nums.push(t.number); });
+  const missing = [!r.promoter_name && 'promoter', !r.promoter_address && 'promoter’s address', !r.registration && 'council registration'].filter(Boolean);
+
+  const actions = {
+    draft: `<button class="btn btn-coral" data-raffle-status="live" ${prizes.length?'':'disabled title="Add a prize first"'}>Put on sale</button>`,
+    live: salesOver ? '' : `<button class="btn btn-ghost" data-raffle-status="closed">Close sales early</button>`,
+    closed: '',
+    drawn: r.results_published ? `<button class="btn btn-ghost" data-raffle-results="false">Hide results</button>` : `<button class="btn btn-coral" data-raffle-results="true">Publish results on the website</button>`,
+  }[r.status];
+
+  return `
+    <div class="head"><div><h1>Raffle</h1><p>Prizes donated by local businesses, digital tickets sold online.</p></div>
+      <button class="btn btn-ghost" data-raffle-new>New raffle</button></div>
+    ${raffles.length>1?`<div class="seg">${raffles.map(x=>`<button class="${x.id===r.id?'on':''}" data-sub="${x.id}">${esc(x.title)}</button>`).join('')}</div>`:''}
+    ${missing.length && r.status!=='drawn' ? `<div class="notice"><b>Add the ${missing.join(', ')}</b> before selling tickets. The law says they must appear on every ticket. <button class="link-btn" data-raffle-edit="${r.id}">Edit details</button></div>` : ''}
+    <div class="card">
+      <div class="raffle-head">
+        <div><h2>${esc(r.title)}</h2>
+          <p class="muted" style="margin:6px 0 0;">${money(r.ticket_price_pence)} a ticket · draw ${d(r.draw_at,true)} · ${r.min_age}+ ${r.max_tickets?`· max ${r.max_tickets} tickets`:''}</p></div>
+        <span class="chip ${st==='live'?'ok':st==='drawn'?'cyan':'coral'}">${RAFFLE_STATUS[st][0]}</span>
+      </div>
+      <div class="actions" style="margin-top:16px;">${actions}<button class="btn btn-ghost" data-raffle-edit="${r.id}">Edit details</button><a class="btn btn-ghost" href="/#/raffle" target="_blank">View on website ↗</a></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="l">Tickets sold</div><div class="n">${sold}${r.max_tickets?` <span class="muted" style="font-size:16px;">of ${r.max_tickets}</span>`:''}</div></div>
+      <div class="stat"><div class="l">Raised</div><div class="n">${money(raised)}</div></div>
+      <div class="stat"><div class="l">Prizes</div><div class="n">${prizes.length}</div></div>
+      <div class="stat"><div class="l">Prize value</div><div class="n">${money(prizeValue)}</div></div>
+    </div>
+    ${offersHTML}
+    <div class="card">
+      <div class="raffle-head"><div><h2>Prizes</h2><p class="muted" style="margin:6px 0 0;">Drawn in this order. Each ticket can only win once.</p></div>
+        ${r.status==='drawn'?'':`<button class="btn btn-coral btn-sm" data-prize-new>Add prize</button>`}</div>
+      ${prizes.length ? `<div class="table-wrap" style="margin-top:12px;"><table><thead><tr><th>#</th><th></th><th>Prize</th><th>Donated by</th><th class="r">Value</th>${r.status==='drawn'?'<th>Winner</th>':''}<th></th></tr></thead><tbody>
+        ${prizes.map((p,i)=>{ const w = p.winner_number ? byNumber[p.winner_number] : null; return `<tr>
+          <td><b>${i+1}</b></td>
+          <td>${(p.image_url||p.sponsor_logo_url)?`<img src="${esc(p.image_url||p.sponsor_logo_url)}" alt="" style="width:64px;height:40px;object-fit:contain;border-radius:6px;">`:''}</td>
+          <td><b>${esc(p.title)}</b>${p.description?`<br><span class="muted">${esc(p.description)}</span>`:''}</td>
+          <td>${esc(p.sponsor_name||'—')}${p.sponsor_url?`<br><a href="${esc(p.sponsor_url)}" target="_blank" rel="noopener" class="muted">website</a>`:''}</td>
+          <td class="r">${p.value_pence?money(p.value_pence):'—'}</td>
+          ${r.status==='drawn'?`<td>${p.winner_number?`<span class="winner">#${p.winner_number}</span><br>${w?`<b>${esc(w.name||'')}</b><br><a href="mailto:${esc(w.email)}?subject=${encodeURIComponent('You won a prize in the '+r.title)}">${esc(w.email||'')}</a>`:''}`:'<span class="muted">Not won</span>'}</td>`:''}
+          <td><div class="actions"><button class="btn btn-ghost btn-sm" data-prize-edit="${p.id}">Edit</button>${r.status==='drawn'?'':`<button class="btn-danger" data-del="raffle_prizes:${p.id}">Delete</button>`}</div></td></tr>`; }).join('')}
+      </tbody></table></div>` : `<div class="empty" style="margin-top:12px;">No prizes yet. Add them here, or share the raffle page so local businesses can offer prizes themselves.</div>`}
+    </div>
+    ${st==='closed' ? `<div class="card"><h2>Draw the winners</h2>
+      <p class="muted" style="margin:6px 0 14px;">Picks a different ticket at random for each prize, in order, and saves the result. Do it with two committee members present. It can only be done once.</p>
+      <button class="btn btn-coral" id="drawRaffle" ${sold&&prizes.length?'':'disabled'}>Draw ${prizes.length} winner${prizes.length===1?'':'s'}</button></div>` : ''}
+    ${r.status==='drawn' ? `<div class="notice"><b>Drawn ${d(r.drawn_at,true)}${r.drawn_by?` by ${esc(r.drawn_by)}`:''}.</b> Email each winner (click their address above), then publish the results. Within 3 months, send the council your return: ${sold} tickets sold, ${money(raised)} taken, prizes worth ${money(prizeValue)} donated${r.registration?` (${esc(r.registration)})`:''}.</div>` : ''}
+    <div class="card table-wrap">
+      <div class="raffle-head" style="margin-bottom:12px;"><h2>Tickets</h2>${sold?`<button class="btn btn-ghost btn-sm" id="exportRaffle">Export CSV</button>`:''}</div>
+      ${sold ? `<table><thead><tr><th>Numbers</th><th>Name</th><th>Email</th><th class="r">Tickets</th><th>Bought</th></tr></thead><tbody>
+        ${Object.values(buyers).map(b=>`<tr><td><b>${rangeText(b.nums)}</b></td><td>${esc(b.name||'')}</td><td><a href="mailto:${esc(b.email)}">${esc(b.email||'')}</a></td><td class="r">${b.nums.length}</td><td class="muted">${d(b.at,true)}</td></tr>`).join('')}
+      </tbody></table>` : `<div class="empty">No tickets sold yet.</div>`}
+    </div>`;
+}
+
 async function giftAidView(){
   const rows = check(await sb.from('funds').select('*, gift_aid_declarations(*)').not('gift_aid_id','is',null).order('received_on',{ascending:false}));
   window._giftaid = rows;
@@ -690,7 +825,7 @@ async function adminsView(){
 /* ---------------- SHELL ---------------- */
 const NAV = [
   ['dashboard','Totaliser'], ['ideas','Suggestions'], ['pots','Funding priorities'], ['events','Events'], ['planning','Event planning'], ['rota','Volunteer rota'],
-  ['payments','Payments'], ['fifty','50:50 Club'], ['giftaid','Gift Aid'],
+  ['payments','Payments'], ['raffle','Raffle'], ['fifty','50:50 Club'], ['giftaid','Gift Aid'],
   ['documents','Documents'], ['privatedocs','Committee files'], ['news','News'], ['committee','Committee'], ['supporters','Supporters wall'],
   ['inbox','Volunteers'], ['settings','Settings'], ['admins','Admins'],
 ];
@@ -701,7 +836,8 @@ async function refreshCounts(){
     sb.from('supporters').select('id',{count:'exact',head:true}).eq('approved',false),
     sb.from('volunteers').select('id',{count:'exact',head:true}).eq('handled',false),
   ]);
-  counts = {ideas:i.count||0, supporters:s.count||0, inbox:v.count||0};
+  const rp = await sb.from('raffle_prizes').select('id',{count:'exact',head:true}).eq('approved',false);
+  counts = {ideas:i.count||0, supporters:s.count||0, inbox:v.count||0, raffle:rp.error?0:(rp.count||0)};
 }
 
 async function render(){
@@ -729,6 +865,7 @@ async function render(){
     else if(view==='inbox') html = await inboxView();
     else if(view==='payments') html = await paymentsView();
     else if(view==='fifty') html = await fiftyView();
+    else if(view==='raffle') html = await raffleView();
     else if(view==='giftaid') html = await giftAidView();
     else if(view==='settings') html = await settingsView();
     else if(view==='admins') html = await adminsView();
@@ -737,7 +874,7 @@ async function render(){
   }catch(e){
     const needsUpdate = /column .* does not exist|could not find .* column|could not find the table|relation .* does not exist/i.test(e.message||'');
     $('#main').innerHTML = needsUpdate
-      ? `<div class="notice"><b>Database update needed.</b> In Supabase, open SQL Editor → New query, paste any files from <code>supabase/migrations/</code> on GitHub you haven't run yet (the newest is <code>2026-10-16-volunteer-rota.sql</code>) and click Run. Then refresh this page.</div>`
+      ? `<div class="notice"><b>Database update needed.</b> In Supabase, open SQL Editor → New query, paste any files from <code>supabase/migrations/</code> on GitHub you haven't run yet (the newest is <code>2026-11-19-raffle.sql</code>) and click Run. Then refresh this page.</div>`
       : `<div class="empty">Couldn't load this page: ${esc(e.message||e)}</div>`;
   }
 }
@@ -871,6 +1008,44 @@ document.addEventListener('click', async e=>{
     if(t.id==='copyCal'){ const el=$('#calUrl'); el.select(); try{ await navigator.clipboard.writeText(el.value); toast('Calendar link copied.'); }catch(e){ document.execCommand('copy'); toast('Calendar link copied.'); } return; }
     if(t.hasAttribute('data-plan-new')){ window._returnTo='planning'; view='events'; sub=null; editing='new'; await render(); window.scrollTo(0,0); return; }
     if(t.dataset.planEdit){ window._returnTo='planning'; view='events'; sub=null; editing=t.dataset.planEdit; await render(); window.scrollTo(0,0); return; }
+    if(t.hasAttribute('data-raffle-new')){ window._returnTo='raffle'; view='raffles'; sub=null; editing='new'; await render(); window.scrollTo(0,0); return; }
+    if(t.dataset.raffleEdit){ window._returnTo='raffle'; view='raffles'; sub=null; editing=t.dataset.raffleEdit; await render(); window.scrollTo(0,0); return; }
+    if(t.hasAttribute('data-prize-new')){ TABLES.raffle_prizes.fixed = {raffle_id: window._raffle.id}; window._returnTo='raffle'; view='raffle_prizes'; sub=null; editing='new'; await render(); window.scrollTo(0,0); return; }
+    if(t.dataset.prizeEdit){ TABLES.raffle_prizes.fixed = {}; window._returnTo='raffle'; view='raffle_prizes'; sub=null; editing=t.dataset.prizeEdit; await render(); window.scrollTo(0,0); return; }
+    if(t.dataset.offerAccept){
+      const r = window._raffle; if(!r) return;
+      const {count} = await sb.from('raffle_prizes').select('id',{count:'exact',head:true}).eq('raffle_id',r.id).eq('approved',true);
+      check(await sb.from('raffle_prizes').update({approved:true, raffle_id:r.id, sort:(count||0)+1}).eq('id',t.dataset.offerAccept));
+      toast('Added to the raffle.'); render(); return;
+    }
+    if(t.dataset.raffleStatus){
+      const r = window._raffle, to = t.dataset.raffleStatus;
+      if(to==='live'){
+        if(!r.promoter_name || !r.promoter_address) return toast('Add the promoter and their address first (Edit details).', true);
+        if(new Date(r.draw_at) <= new Date()) return toast('The draw date has passed. Change it first (Edit details).', true);
+        if(!confirm(`Put “${r.title}” on sale? It will appear on the website straight away.\n\nCheck first that the raffle is registered with the council and Stripe has agreed to raffle payments.`)) return;
+      }
+      if(to==='closed' && !confirm('Stop selling tickets now? This can’t be undone.')) return;
+      check(await sb.from('raffles').update({status:to}).eq('id',r.id));
+      toast(to==='live'?'On sale.':'Sales closed.'); render(); return;
+    }
+    if(t.dataset.raffleResults){
+      check(await sb.from('raffles').update({results_published: t.dataset.raffleResults==='true'}).eq('id',window._raffle.id));
+      toast(t.dataset.raffleResults==='true'?'Results are on the website.':'Results hidden.'); render(); return;
+    }
+    if(t.id==='drawRaffle'){
+      const r = window._raffle;
+      if(!confirm(`Draw the winners for “${r.title}” now? Do this with two committee members present. It can only be done once.`)) return;
+      t.disabled = true; t.textContent = 'Drawing…';
+      try{ const out = await adminFetch('/api/admin/raffle-draw', {method:'POST', body: JSON.stringify({raffle_id:r.id})});
+        toast(out.unawarded ? `Drawn. ${out.unawarded} prize(s) not awarded: not enough tickets.` : 'Winners drawn.'); render(); }
+      catch(err){ toast(err.message, true); t.disabled = false; t.textContent = 'Draw winners'; }
+      return;
+    }
+    if(t.id==='exportRaffle'){
+      const r = window._raffle;
+      csv([['Ticket','Name','Email','Bought'], ...window._raffleTickets.map(x=>[x.number, x.name, x.email, x.created_at])], `${safeName(r.title)}-tickets.csv`); return;
+    }
     if(t.dataset.approveSupporter){ check(await sb.from('supporters').update({approved:true}).eq('id',t.dataset.approveSupporter)); toast('Approved.'); render(); return; }
     if(t.dataset.handled){ const [id,v]=t.dataset.handled.split(':'); check(await sb.from('volunteers').update({handled:v==='true'}).eq('id',id)); render(); return; }
     if(t.id==='addFund'){

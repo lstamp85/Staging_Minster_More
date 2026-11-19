@@ -148,7 +148,7 @@
   .empty b{display:block;color:var(--ink);font-size:17px;margin-bottom:4px;font-family:'Archivo',sans-serif;}
 
   /* PAGE HEAD */
-  .page-head{padding:48px 0 12px;}
+  .page-head{padding-top:48px;padding-bottom:12px;}
   .page-head h1{font-size:clamp(34px,5vw,58px);font-weight:800;margin:14px 0 16px;letter-spacing:-0.025em;line-height:1.02;}
   .page-head .intro{font-size:18px;color:var(--ink-soft);max-width:58ch;line-height:1.55;margin:0;}
 
@@ -170,6 +170,72 @@
   .bordered-card p{margin:0;font-size:14.5px;color:var(--ink-mid);line-height:1.5;}
   .note{font-size:13.5px;color:var(--ink-soft);line-height:1.55;}
 
+
+  /* RAFFLE */
+  .raffle-band{display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap;background:var(--ink);color:var(--paper);border-radius:28px;padding:32px 40px;text-decoration:none;margin-bottom:8px;}
+  .raffle-band .eyebrow{color:var(--cyan);}
+  .raffle-band h2{color:var(--paper);margin:8px 0 6px;}
+  .raffle-band p{margin:0;color:oklch(0.9 0.01 258);font-size:16px;}
+  .raffle-band .btn{background:var(--coral);color:var(--ink);}
+  .raffle-band-side{display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
+  .raffle-band-logos{display:flex;gap:8px;}
+  .raffle-band-logos span{width:56px;height:56px;border-radius:14px;background:#fff;display:flex;align-items:center;justify-content:center;padding:6px;}
+  .raffle-band-logos img{max-width:100%;max-height:100%;object-fit:contain;}
+  .raffle-facts{display:flex;flex-wrap:wrap;gap:12px;margin-top:22px;}
+  .raffle-facts div{background:var(--card);border:1px solid var(--hairline);border-radius:16px;padding:12px 18px;display:flex;flex-direction:column;gap:2px;}
+  .raffle-facts span{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);font-weight:600;}
+  .raffle-facts b{font-family:'Archivo',sans-serif;font-size:20px;}
+  .prize-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:18px;margin-top:28px;}
+  .prize-card{background:var(--card);border:1px solid var(--hairline);border-radius:22px;overflow:hidden;display:flex;flex-direction:column;}
+  .prize-card.won{border:2px solid var(--coral);}
+  .prize-media{aspect-ratio:16/10;max-width:100%;background:#fff;display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--hairline);}
+  .prize-media.photo img{width:100%;height:100%;object-fit:cover;}
+  .prize-media.logo{padding:24px 32px;}
+  .prize-media.logo img{max-width:100%;max-height:100%;object-fit:contain;}
+  .prize-rank-big{font-family:'Archivo',sans-serif;font-weight:800;font-size:56px;color:var(--coral);}
+  .prize-body{padding:20px 22px 22px;display:flex;flex-direction:column;gap:10px;flex:1;}
+  .prize-top{display:flex;gap:6px;flex-wrap:wrap;}
+  .prize-title{font-family:'Archivo',sans-serif;font-size:20px;margin:0;line-height:1.2;}
+  .prize-desc{font-size:14.5px;line-height:1.5;color:var(--ink-mid);margin:0;}
+  .prize-sponsor{margin-top:auto;padding-top:12px;border-top:1px solid var(--hairline);display:flex;align-items:center;gap:10px;font-size:14px;color:var(--ink-mid);}
+  .prize-sponsor img{width:34px;height:34px;object-fit:contain;border-radius:8px;background:#fff;border:1px solid var(--hairline);padding:3px;}
+  .prize-sponsor a{color:var(--ink);text-underline-offset:3px;}
+  .prize-winner{background:var(--coral);border-radius:14px;padding:10px 14px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;}
+  .prize-winner span{font-size:12px;text-transform:uppercase;letter-spacing:.08em;font-weight:700;}
+  .prize-winner b{font-family:'Archivo',sans-serif;font-size:26px;}
+  .prize-winner em{font-style:normal;font-size:14px;}
+  .raffle-buy{margin-top:28px;}
+  .raffle-price{font-family:'Archivo',sans-serif;font-weight:800;font-size:40px;margin:6px 0 14px;}
+  .raffle-price span{font-family:'Sora',sans-serif;font-size:15px;font-weight:500;opacity:.75;}
+  .quick-qty{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+  .quick-qty button{border:1.5px solid rgba(255,255,255,.35);border-radius:12px;padding:10px 0;font-weight:700;font-size:15px;color:var(--paper);}
+  .quick-qty button.on{background:var(--coral);border-color:var(--coral);color:var(--ink);}
+  .raffle-buy .stepper button{border-color:var(--paper);color:var(--paper);}
+  .raffle-total{margin-left:auto;font-family:'Archivo',sans-serif;font-weight:800;font-size:22px;}
+  .raffle-fine{font-size:13px;line-height:1.5;opacity:.8;margin:14px 0 0;}
+  .sponsor-strip{margin:56px 0 0;text-align:center;}
+  .sponsor-strip h2{font-size:26px;margin-bottom:22px;}
+  .sponsor-logos{display:flex;flex-wrap:wrap;justify-content:center;gap:14px;}
+  .sponsor-logos a{text-decoration:none;color:inherit;}
+  .sponsor-logo{width:150px;height:84px;background:#fff;border:1px solid var(--hairline);border-radius:16px;display:flex;align-items:center;justify-content:center;padding:12px 18px;}
+  .sponsor-logo img{max-width:100%;max-height:100%;object-fit:contain;}
+  .sponsor-name{display:flex;align-items:center;height:84px;padding:0 22px;background:#fff;border:1px solid var(--hairline);border-radius:16px;font-family:'Archivo',sans-serif;font-weight:700;}
+  .offer{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:32px;align-items:start;margin:64px 0 0;background:color-mix(in oklch, var(--cyan) 18%, var(--paper));border-radius:28px;padding:40px;}
+  .offer h2{margin:8px 0 12px;}
+  .offer-copy p{font-size:16px;line-height:1.6;color:var(--ink-mid);}
+  .offer-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px;}
+  .offer-grid .full{grid-column:1/-1;}
+  .offer input[type=file]{font-size:13px;max-width:100%;}
+  .raffle-rules{margin:40px 0 0;}
+  @media (max-width:860px){
+    .raffle-band{padding:24px;}
+    .offer{grid-template-columns:1fr;padding:20px;gap:18px;}
+    .offer .white-card{padding:22px;}
+    .offer-grid{grid-template-columns:1fr;}
+    .raffle-buy{margin-top:8px;}
+    .raffle-layout > :last-child{order:-1;}
+    .raffle-layout .prize-grid{margin-top:8px;}
+  }
   /* SUGGEST */
   .idea-prompts{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:28px 0 40px;}
   .idea-prompt{display:flex;flex-direction:column;align-items:flex-start;gap:10px;text-align:left;font:inherit;color:inherit;cursor:pointer;border-radius:20px;padding:24px;background:var(--paper, #fff);transition:border-color .15s, box-shadow .15s;}
@@ -364,7 +430,7 @@
     .target-card,.summary-panel,.fm-card,.white-card,.sponsor-panel,.donate-panel{padding:24px;border-radius:22px;}
     .target-figure{font-size:52px;}
     .fig-num{font-size:40px;}
-    .page-head{padding:32px 0 4px;}
+    .page-head{padding-top:32px;padding-bottom:4px;}
     .section-head h2,.strip h2{font-size:24px;}
     .strip{padding:28px;flex-direction:column;align-items:stretch;}
     .pot-row{grid-template-columns:1fr;padding:20px;gap:14px;}
@@ -475,10 +541,11 @@ const NAV = [
   {key:'money',   label:'Where the money goes'},
   {key:'suggest', label:'Suggest & vote'},
   {key:'events',  label:'Events'},
+  {key:'raffle',  label:'Raffle', when:()=>data && data.raffle},
   {key:'wall',    label:'Supporters'},
   {key:'about',   label:'About'},
 ];
-const PAGES = ['home','give','money','suggest','events','wall','about','privacy','thanks'];
+const PAGES = ['home','give','money','suggest','events','raffle','wall','about','privacy','thanks'];
 const EMAIL = {
   hello:'hello@minstermore.org.uk', events:'events@minstermore.org.uk',
   finance:'finance@minstermore.org.uk', team:'team@minstermore.org.uk',
@@ -505,7 +572,9 @@ function ideaCost(i){
 let suggestSent = false;
 let volunteerSent = false;
 let donation = {amount:2500, other:'', giftAid:false, ga:{full_name:'', house:'', postcode:''}};
-let basketForm = {giftAid:false, ga:{full_name:'', house:'', postcode:''}, wall_name:'', over18:false};
+let basketForm = {giftAid:false, ga:{full_name:'', house:'', postcode:''}, wall_name:'', over18:false, raffleAge:false};
+let raffleQty = 5;
+let offerForm = {business:'', contact_name:'', email:'', phone:'', website:'', prize:'', description:'', value:''}, offerSent = false, offerLogo = null;
 let modal = null; // {type:'donate'|'basket'|'reserve'|'help', ...}
 let helpForm = null;
 const openRoles = ev => (ev.roles||[]).filter(r => r.filled < r.needed);
@@ -558,7 +627,7 @@ window.addEventListener('hashchange', route);
 
 /* ---------------- COMPONENTS ---------------- */
 function navHTML(){
-  return NAV.map(n=>`<a href="#/${n.key}" class="${page===n.key?'active':''}">${n.label}</a>`).join('');
+  return NAV.filter(n=>!n.when || n.when()).map(n=>`<a href="#/${n.key}" class="${page===n.key?'active':''}">${n.label}</a>`).join('');
 }
 
 function targetCard(){
@@ -703,6 +772,7 @@ function pageHome(){
       <div>${targetCard()}</div>
     </div>
 
+    ${raffleBand()}
     <section class="wrap">${pvmCards(true)}</section>
 
     <section class="band">
@@ -926,6 +996,183 @@ function pageMoney(){
           <p>Our accounts, annual reports and AGM minutes are published on the <a class="link" href="#/about" data-scroll="docs">About page</a>.</p>
         </div>
       </div>
+    </div>`;
+}
+
+/* ---------------- RAFFLE ---------------- */
+function ord(n){ const s=['th','st','nd','rd'], v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
+function fmtShort(iso){ return new Date(iso).toLocaleString('en-GB',{weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit', timeZone:'Europe/London'}); }
+function fmtLong(iso){ return new Date(iso).toLocaleString('en-GB',{weekday:'long', day:'numeric', month:'long', hour:'numeric', minute:'2-digit', timeZone:'Europe/London'}); }
+function sponsorLink(p, inner){ return p.sponsor_url ? `<a href="${esc(p.sponsor_url)}" target="_blank" rel="noopener sponsored">${inner}</a>` : inner; }
+
+function raffleBand(){
+  const r = data.raffle;
+  if(!r || !(r.on_sale || r.results)) return '';
+  const total = r.prizes.reduce((s,p)=>s+(p.value_pence||0),0);
+  const logos = r.prizes.filter(p=>p.sponsor_logo_url).slice(0,5);
+  return `
+    <section class="wrap">
+      <a class="raffle-band" href="#/raffle">
+        <div>
+          <div class="eyebrow">${r.results ? 'Raffle results' : 'Raffle · draw ' + esc(fmtShort(r.draw_at))}</div>
+          <h2>${esc(r.title)}</h2>
+          <p>${r.results ? 'The winning tickets are in. See if you’ve won.' : `${r.prizes.length} prize${r.prizes.length===1?'':'s'} from local businesses${total?`, worth ${money(total)}`:''}. Tickets ${money(r.ticket_price_pence)} each.`}</p>
+        </div>
+        <div class="raffle-band-side">
+          ${logos.length ? `<div class="raffle-band-logos">${logos.map(p=>`<span><img src="${esc(p.sponsor_logo_url)}" alt="${esc(p.sponsor_name||'')}"></span>`).join('')}</div>` : ''}
+          <span class="btn btn-ink btn-big">${r.results ? 'See the winners' : 'Buy tickets'}</span>
+        </div>
+      </a>
+    </section>`;
+}
+
+function prizeCard(p, i, r){
+  const img = p.image_url || p.sponsor_logo_url;
+  const won = r.results && p.winner_number;
+  return `
+    <article class="prize-card ${won?'won':''}">
+      <div class="prize-media ${p.image_url?'photo':'logo'}">${img ? `<img src="${esc(img)}" alt="" loading="lazy">` : `<span class="prize-rank-big">${ord(i+1)}</span>`}</div>
+      <div class="prize-body">
+        <div class="prize-top"><span class="chip chip-coral">${ord(i+1)} prize</span>${p.value_pence?`<span class="chip chip-line">Worth ${money(p.value_pence)}</span>`:''}</div>
+        <h3 class="prize-title">${esc(p.title)}</h3>
+        ${p.description?`<p class="prize-desc">${esc(p.description)}</p>`:''}
+        ${won ? `<div class="prize-winner"><span>Winning ticket</span><b>#${p.winner_number}</b>${p.winner_display?`<em>${esc(p.winner_display)}</em>`:''}</div>` : ''}
+        ${p.sponsor_name ? `<div class="prize-sponsor">${p.sponsor_logo_url && p.image_url ? `<img src="${esc(p.sponsor_logo_url)}" alt="">` : ''}<span>Donated by ${sponsorLink(p, `<b>${esc(p.sponsor_name)}</b>`)}</span></div>` : ''}
+      </div>
+    </article>`;
+}
+
+function raffleBuyBox(r){
+  if(r.results) return `
+    <div class="form-panel">
+      <h3>The draw has taken place</h3>
+      <p style="font-size:15px;line-height:1.55;margin:0 0 14px;">Drawn ${esc(fmtLong(r.draw_at))}. ${r.sold} tickets were sold. Winners have been contacted by email.</p>
+      <p style="font-size:15px;line-height:1.55;margin:0;">Thank you to everyone who took part, and to the businesses who gave the prizes.</p>
+    </div>`;
+  if(!r.on_sale) return `
+    <div class="form-panel">
+      <h3>Ticket sales have closed</h3>
+      <p style="font-size:15px;line-height:1.55;margin:0;">${r.status==='drawn' ? 'The draw has taken place. Winners are being contacted, and results will appear here soon.' : `The draw is on ${esc(fmtLong(r.draw_at))}. Check back here for the winning numbers.`}</p>
+    </div>`;
+  if(!data.payments) return `<div class="form-panel"><h3>Tickets coming soon</h3><p style="font-size:15px;line-height:1.55;margin:0;">Online ticket sales open shortly.</p></div>`;
+  const max = Math.min(100, r.remaining ?? 100);
+  if(raffleQty > max) raffleQty = Math.max(1, max);
+  return `
+    <div class="form-panel raffle-buy">
+      <div class="eyebrow" style="color:var(--cyan);">Buy tickets</div>
+      <div class="raffle-price">${money(r.ticket_price_pence)} <span>per ticket</span></div>
+      <div class="quick-qty">${[1,5,10,20].filter(n=>n<=max).map(n=>`<button class="${raffleQty===n?'on':''}" data-raffle-qty="${n}">${n}</button>`).join('')}</div>
+      <div class="stepper">
+        <button id="raffleMinus" aria-label="Fewer tickets">−</button>
+        <span class="count">${raffleQty}</span>
+        <button id="rafflePlus" aria-label="More tickets">+</button>
+        <span class="raffle-total">${money(raffleQty*r.ticket_price_pence)}</span>
+      </div>
+      <label class="check"><input type="checkbox" id="rf-age" ${basketForm.raffleAge?'checked':''}> <span>I’m ${r.min_age||16} or over and agree to the raffle rules below.</span></label>
+      <button class="btn btn-coral btn-big" id="raffleAdd" style="width:100%;margin-top:16px;">Add ${raffleQty} ticket${raffleQty===1?'':'s'} to basket</button>
+      <p class="raffle-fine">Draw: ${esc(fmtLong(r.draw_at))}${r.remaining!=null?` · ${r.remaining} tickets left`:''}. Your ticket numbers are emailed to you straight after payment.</p>
+    </div>`;
+}
+
+function offerBlock(r){
+  return `
+    <section class="offer" id="offer">
+      <div class="offer-copy">
+        <div class="eyebrow">For local businesses</div>
+        <h2>Offer a prize. Get seen by the whole Minster community.</h2>
+        <p>Donate a prize, voucher or experience and we’ll feature your logo, prize and a link to your website on this page, in our emails and on social media.</p>
+        <ul class="fm-benefits">
+          <li>Your brand in front of hundreds of local families</li>
+          <li>A link to your website from the raffle page</li>
+          <li>A thank-you on our supporters wall</li>
+        </ul>
+      </div>
+      <div class="white-card">
+        ${offerSent ? `
+          <h3>Thank you!</h3>
+          <p style="font-size:15px;line-height:1.55;margin:0 0 18px;">We’ve got your offer and will be in touch to arrange it. Your prize will appear on this page once the committee has confirmed it.</p>
+          <button class="btn btn-ghost" id="offerAgain">Offer another prize</button>` : `
+        <h3>Offer a prize</h3>
+        <div class="offer-grid">
+          <div class="field"><label for="of-business">Business name</label><input id="of-business" maxlength="120" value="${esc(offerForm.business)}"></div>
+          <div class="field"><label for="of-website">Website <span class="note">(optional)</span></label><input id="of-website" maxlength="300" placeholder="www.example.co.uk" value="${esc(offerForm.website)}"></div>
+          <div class="field full"><label for="of-prize">The prize</label><input id="of-prize" maxlength="140" placeholder="e.g. Afternoon tea for two" value="${esc(offerForm.prize)}"></div>
+          <div class="field full"><label for="of-description">Details <span class="note">(optional)</span></label><textarea id="of-description" rows="2" maxlength="800" placeholder="Anything winners should know, e.g. valid until June">${esc(offerForm.description)}</textarea></div>
+          <div class="field"><label for="of-value">Value <span class="note">(optional)</span></label><div class="field-cost"><span>£</span><input id="of-value" type="number" min="0" step="1" value="${esc(offerForm.value)}"></div></div>
+          <div class="field"><label for="of-logo">Your logo <span class="note">(optional)</span></label><input id="of-logo" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml"></div>
+          <div class="field"><label for="of-contact_name">Your name</label><input id="of-contact_name" maxlength="120" autocomplete="name" value="${esc(offerForm.contact_name)}"></div>
+          <div class="field"><label for="of-email">Email</label><input id="of-email" type="email" maxlength="200" autocomplete="email" value="${esc(offerForm.email)}"></div>
+          <div class="field full"><label for="of-phone">Phone <span class="note">(optional)</span></label><input id="of-phone" type="tel" maxlength="40" autocomplete="tel" value="${esc(offerForm.phone)}"></div>
+        </div>
+        <button class="btn btn-coral" id="offerSubmit" style="width:100%;" ${busy?'disabled':''}>${busy?'Sending…':'Send my offer'}</button>
+        <p class="note" style="margin:12px 0 0;">We’ll only use your details to arrange the prize. Questions? <a class="link" href="mailto:${EMAIL.hello}">${EMAIL.hello}</a></p>`}
+      </div>
+    </section>`;
+}
+
+async function submitOffer(btn){
+  const f = offerForm;
+  if(!f.business.trim() || !f.prize.trim()){ toast('Add your business name and the prize.'); return; }
+  if(!f.contact_name.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())){ toast('Add your name and a valid email.'); return; }
+  busy = true; render();
+  try{
+    await post('/api/raffle-offer', {...f, logo: offerLogo});
+    busy = false; offerSent = true; offerLogo = null; track('raffle_prize_offer');
+    offerForm = {business:'', contact_name:'', email:'', phone:'', website:'', prize:'', description:'', value:''};
+    render(); document.getElementById('offer')?.scrollIntoView({behavior:'smooth', block:'start'});
+  }catch(e){ busy = false; render(); toast(e.message); }
+}
+
+function pageRaffle(){
+  const r = data.raffle;
+  if(!r) return `
+    <div class="wrap page-head"><div class="eyebrow">Raffle</div><h1>No raffle running right now.</h1>
+      <p class="intro">Our next raffle is on its way. If your business would like to offer a prize, we’d love to hear from you.</p></div>
+    <div class="wrap">${offerBlock(null)}</div>`;
+  const total = r.prizes.reduce((s,p)=>s+(p.value_pence||0),0);
+  const sponsors = [...new Map(r.prizes.filter(p=>p.sponsor_name).map(p=>[p.sponsor_name, p])).values()];
+  return `
+    <div class="wrap page-head">
+      <div class="eyebrow">Raffle</div>
+      <h1>${esc(r.title)}</h1>
+      ${r.blurb ? `<p class="intro">${esc(r.blurb)}</p>` : ''}
+      <div class="raffle-facts">
+        <div><span>Tickets</span><b>${money(r.ticket_price_pence)}</b></div>
+        <div><span>Prizes</span><b>${r.prizes.length}${total?` · ${money(total)}`:''}</b></div>
+        <div><span>${r.results||r.status==='drawn'?'Drawn':'Draw'}</span><b>${esc(fmtShort(r.draw_at))}</b></div>
+      </div>
+    </div>
+    <div class="wrap">
+      <div class="two-col raffle-layout">
+        <div>
+          ${r.prizes.length ? `<div class="prize-grid">${r.prizes.map((p,i)=>prizeCard(p,i,r)).join('')}</div>`
+            : emptyState('Prizes coming soon', 'Local businesses are lining up prizes. Check back shortly.')}
+        </div>
+        <div>${raffleBuyBox(r)}</div>
+      </div>
+
+      ${sponsors.length ? `
+      <section class="sponsor-strip">
+        <h2>Thank you to our prize donors</h2>
+        <div class="sponsor-logos">${sponsors.map(p=>sponsorLink(p, p.sponsor_logo_url ? `<span class="sponsor-logo"><img src="${esc(p.sponsor_logo_url)}" alt="${esc(p.sponsor_name)}"></span>` : `<span class="sponsor-name">${esc(p.sponsor_name)}</span>`)).join('')}</div>
+      </section>` : ''}
+
+      ${r.on_sale ? offerBlock(r) : ''}
+
+      <details class="disclosure raffle-rules">
+        <summary>Raffle rules</summary>
+        <ol>
+          <li>This lottery is promoted by Minster More (registered charity 516332) to raise money for The Minster School.${r.registration?` ${esc(r.registration)}.`:''}</li>
+          ${r.promoter_name?`<li>The promoter is ${esc(r.promoter_name)}${r.promoter_address?`, ${esc(r.promoter_address)}`:''}.</li>`:''}
+          <li>Every ticket costs ${money(r.ticket_price_pence)}. You must be ${r.min_age||16} or over to take part.</li>
+          <li>Ticket numbers are given out in order and emailed to you straight after payment. Your email is your ticket.</li>
+          <li>The draw is on ${esc(fmtLong(r.draw_at))}. Ticket sales close at that time.</li>
+          <li>Prizes are drawn in order, one per winning ticket. Numbers are picked at random by computer, with committee members present.</li>
+          <li>Winners are contacted by email within 7 days, and winning numbers are published on this page. Unclaimed prizes after 30 days may be redrawn.</li>
+          <li>Prizes are donated by local businesses and there are no cash alternatives. Age-restricted prizes, such as alcohol, can only go to winners old enough to receive them.</li>
+          <li>Raffle tickets are not donations, so Gift Aid can’t be claimed on them.</li>
+        </ol>
+      </details>
     </div>`;
 }
 
@@ -1259,6 +1506,7 @@ function renderModal(){
             <input id="bk-wall" maxlength="80" placeholder="e.g. The Smith family" value="${esc(basketForm.wall_name)}"></div>` : ''}
           ${giftable ? giftAidBlock(basketForm, giftable, 'basket') : ''}
           ${hasFifty ? `<label class="check"><input type="checkbox" id="bk-18" ${basketForm.over18?'checked':''}> <span>I'm 18 or over and agree to the 50:50 Club rules.</span></label>` : ''}
+          ${basket.some(b=>b.kind==='raffle') ? `<label class="check"><input type="checkbox" id="bk-raffle" ${basketForm.raffleAge?'checked':''}> <span>I'm ${(data.raffle&&data.raffle.min_age)||16} or over and agree to the <a class="link" href="#/raffle" data-close>raffle rules</a>.</span></label>` : ''}
         </div>
         <button class="btn btn-coral btn-big" id="payBtn" style="width:100%;" ${busy?'disabled':''}>${busy?'Taking you to checkout…':`Pay ${money(total)}`}</button>
         <div class="secure">Secure payment by Stripe${hasMember?' · Future Makers renews monthly, cancel any time':''}</div>
@@ -1285,13 +1533,14 @@ function checkoutValue(items){
   return items.reduce((t,i)=> t + (i.kind==='donation' ? i.amount_pence
     : i.kind==='membership' ? 1000
     : i.kind==='fifty' ? 1000*i.qty
+    : i.kind==='raffle' ? ((data.raffle||{}).ticket_price_pence||0)*i.qty
     : i.kind==='ticket' ? ((data.events.find(e=>e.id===i.event_id)||{}).price_pence||0)*i.qty : 0), 0) / 100;
 }
 async function startCheckout(items, extra){
   busy = true; renderModal(); if(page==='give') render();
   try{
     const value = checkoutValue(items);
-    const gaItems = items.map(i=>({item_name: {donation:'One-off donation', membership:'Future Makers', fifty:'50:50 Club', ticket:'Event ticket'}[i.kind]||i.kind, item_category:i.kind, quantity:i.qty||1}));
+    const gaItems = items.map(i=>({item_name: {donation:'One-off donation', membership:'Future Makers', fifty:'50:50 Club', ticket:'Event ticket', raffle:'Raffle ticket'}[i.kind]||i.kind, item_category:i.kind, quantity:i.qty||1}));
     track('begin_checkout', {currency:'GBP', value, items:gaItems});
     try{ sessionStorage.setItem('mm_pending', JSON.stringify({value, items:gaItems})); }catch(e){}
     const {url} = await post('/api/checkout', Object.assign({items}, extra));
@@ -1315,10 +1564,12 @@ function donateNow(){
 
 function payBasket(){
   if(basket.some(b=>b.kind==='fifty') && !basketForm.over18){ toast('Please confirm you\'re 18 or over for the 50:50 Club.'); return; }
+  if(basket.some(b=>b.kind==='raffle') && !basketForm.raffleAge){ toast(`Please confirm you're ${(data.raffle&&data.raffle.min_age)||16} or over for the raffle.`); return; }
   const giftable = basket.some(b=>b.kind==='donation'||b.kind==='membership');
   const ga = giftable ? readGA(basketForm) : null; if(ga === false) return;
   const items = basket.map(b=> b.kind==='ticket' ? {kind:'ticket', event_id:b.ref_id, qty:b.qty}
     : b.kind==='fifty' ? {kind:'fifty', qty:b.qty, over18:basketForm.over18}
+    : b.kind==='raffle' ? {kind:'raffle', raffle_id:b.ref_id, qty:b.qty, age_ok:basketForm.raffleAge}
     : b.kind==='donation' ? {kind:'donation', amount_pence:b.unit_pence}
     : {kind:'membership'});
   startCheckout(items, {gift_aid: ga, wall_name: basketForm.wall_name});
@@ -1381,6 +1632,18 @@ document.addEventListener('click', e=>{
     return;
   }
   if(t.matches('[data-add-membership]')){ addToBasket({kind:'membership', label:'Future Makers', meta:'£10 a month · cancel any time', unit_pence:1000, qty:1}); return; }
+  if(t.id === 'raffleMinus'){ raffleQty = Math.max(1, raffleQty-1); render(); return; }
+  if(t.id === 'rafflePlus'){ raffleQty = Math.min(100, raffleQty+1); render(); return; }
+  if(t.matches('[data-raffle-qty]')){ raffleQty = Number(t.dataset.raffleQty); render(); return; }
+  if(t.id === 'raffleAdd'){
+    const r = data.raffle;
+    if(!basketForm.raffleAge){ toast(`Please confirm you're ${r.min_age||16} or over.`); return; }
+    addToBasket({kind:'raffle', ref_id:r.id, label:'Raffle tickets', meta:`${r.title} · draw ${fmtShort(r.draw_at)}`, unit_pence:r.ticket_price_pence, qty:raffleQty});
+    track('add_to_cart', {currency:'GBP', value:raffleQty*r.ticket_price_pence/100, items:[{item_name:'Raffle ticket', item_category:'raffle', quantity:raffleQty}]});
+    return;
+  }
+  if(t.id === 'offerSubmit'){ submitOffer(t); return; }
+  if(t.id === 'offerAgain'){ offerSent = false; render(); return; }
   if(t.id === 'fiftyMinus'){ fiftyQty = Math.max(1, fiftyQty-1); render(); return; }
   if(t.id === 'fiftyPlus'){ fiftyQty = Math.min(20, fiftyQty+1); render(); return; }
   if(t.id === 'fiftyAdd'){ addToBasket({kind:'fifty', label:'50:50 Club number', meta:data.settings.fifty_term_label, unit_pence:1000, qty:fiftyQty}); fiftyQty = 1; render(); return; }
@@ -1425,6 +1688,7 @@ document.addEventListener('click', e=>{
 });
 
 document.addEventListener('input', e=>{
+  if(e.target.id && e.target.id.startsWith('of-') && e.target.type !== 'file'){ offerForm[e.target.id.slice(3)] = e.target.value; }
   const t = e.target;
   if(helpForm && t.id && t.id.startsWith('hp-') && t.type !== 'checkbox'){ helpForm[t.id.slice(3)] = t.value; return; }
   if(t.id === 'otherAmount'){
@@ -1442,6 +1706,13 @@ document.addEventListener('input', e=>{
   if(t.id === 'bk-wall')  basketForm.wall_name = t.value;
 });
 document.addEventListener('change', e=>{
+  if(e.target.id === 'of-logo'){
+    const f = e.target.files[0]; offerLogo = null;
+    if(!f) return;
+    if(!/^image\/(png|jpeg|webp|svg\+xml|gif)$/.test(f.type)){ toast('Please choose a PNG, JPG, SVG or WebP image.'); e.target.value=''; return; }
+    if(f.size > 2*1024*1024){ toast('The logo must be under 2MB.'); e.target.value=''; return; }
+    const rd = new FileReader(); rd.onload = ()=>{ offerLogo = rd.result; }; rd.readAsDataURL(f);
+  }
   const t = e.target;
   if(helpForm && t.dataset.role){ t.checked ? helpForm.roles.add(t.dataset.role) : helpForm.roles.delete(t.dataset.role); t.closest('.role').classList.toggle('on', t.checked); return; }
   if(helpForm && t.id === 'hp-child'){ helpForm.child = t.checked; return; }
@@ -1453,6 +1724,7 @@ document.addEventListener('change', e=>{
   }
   if(t.id === 'sf-who') suggestForm.who = t.value;
   if(t.id === 'bk-18') basketForm.over18 = t.checked;
+  if(t.id === 'bk-raffle' || t.id === 'rf-age') basketForm.raffleAge = t.checked;
 });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ if(modal) closeModal(); closeDrawer(); } });
 
@@ -1468,7 +1740,7 @@ function render(){
   document.getElementById('mobileNav').innerHTML = navHTML();
   updateBasketBtn();
   if(!data) return;
-  const fn = {home:pageHome, give:pageGive, money:pageMoney, suggest:pageSuggest, events:pageEvents, wall:pageWall, about:pageAbout, privacy:pagePrivacy, thanks:pageThanks}[page];
+  const fn = {home:pageHome, give:pageGive, money:pageMoney, suggest:pageSuggest, events:pageEvents, raffle:pageRaffle, wall:pageWall, about:pageAbout, privacy:pagePrivacy, thanks:pageThanks}[page];
   document.getElementById('app').innerHTML = fn();
   if(window._scrollTo){ const el = document.getElementById(window._scrollTo); window._scrollTo = null; if(el) setTimeout(()=>el.scrollIntoView({behavior:'smooth'}), 50); }
 }

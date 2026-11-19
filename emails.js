@@ -152,6 +152,15 @@ function committeeNotice({ subject, heading, intro, rows, cta }) {
 }
 
 // ----------------------------------------------------- payments etc. --
+// 1, 2, 3, 7 → "1–3, 7"
+function numbersText(nums) {
+  const n = [...nums].sort((a, b) => a - b), out = [];
+  for (let i = 0; i < n.length; i++) {
+    let j = i; while (j + 1 < n.length && n[j + 1] === n[j] + 1) j++;
+    out.push(j > i ? `${n[i]}–${n[j]}` : String(n[i])); i = j;
+  }
+  return out.join(', ');
+}
 const money = p => '£' + ((p || 0) / 100).toLocaleString('en-GB', { minimumFractionDigits: (p || 0) % 100 ? 2 : 0, maximumFractionDigits: 2 });
 const MANAGE_URL = `${SITE}/manage-membership`;
 
@@ -177,7 +186,7 @@ function icsEvent(ev, uidPrefix, summaryPrefix, description) {
 
 // One thank-you per payment, covering everything in the basket:
 // donation, Future Makers, 50:50 numbers and event tickets.
-function paymentThanks({ name, items, giftAid, wallName, events = {}, totalPence }) {
+function paymentThanks({ name, items, giftAid, wallName, events = {}, raffles = {}, totalPence }) {
   const donation = items.filter(i => i.kind === 'donation').reduce((t, i) => t + i.unit_pence * i.qty, 0);
   const membership = items.find(i => i.kind === 'membership');
   const fifty = items.filter(i => i.kind === 'fifty');
@@ -214,6 +223,22 @@ function paymentThanks({ name, items, giftAid, wallName, events = {}, totalPence
     ]) + `<p style="margin:0 0 18px;font:13.5px/1.6 ${FONT};color:${INK_SOFT};">Numbers are given out in order of entry and don't carry over between terms. Players must be 18 or over.</p>`);
     textParts.push(`50:50 Club: ${fiftyQty} number(s) for ${term}. Winners are emailed within 48 hours of the end-of-term draw.`);
   }
+  // Raffle tickets: the details the Gambling Act requires on every ticket
+  const raffleItems = items.filter(i => i.kind === 'raffle');
+  for (const ri of raffleItems) {
+    const entry = raffles[ri.ref_id];
+    if (!entry) continue;
+    const { raffle: r, numbers } = entry;
+    const list = numbersText(numbers);
+    parts.push(sectionTitle(numbers.length === 1 ? 'Your raffle ticket' : 'Your raffle tickets') + detailsPanel([
+      ['Raffle', `<b>${esc(r.title)}</b>`],
+      [numbers.length === 1 ? 'Ticket number' : 'Ticket numbers', `<b style="font-size:18px;">${esc(list)}</b>`],
+      ['Price', `${numbers.length} × ${money(r.ticket_price_pence)} = <b>${money(numbers.length * r.ticket_price_pence)}</b>`],
+      ['Draw', `${esc(fmtDate(r.draw_at))}, ${esc(fmtTime(r.draw_at))}`],
+      ['Prizes', `<a href="${SITE}/#/raffle" style="color:${NAVY};">See the prizes and winners</a>`],
+    ]) + `<p style="margin:0 0 18px;font:13px/1.6 ${FONT};color:${INK_SOFT};">Keep this email: it is your ticket. Promoted by Minster More (registered charity 516332)${r.promoter_name ? `. Promoter: ${esc(r.promoter_name)}${r.promoter_address ? `, ${esc(r.promoter_address)}` : ''}` : ''}.${r.registration ? ` ${esc(r.registration)}.` : ''} Players must be ${r.min_age || 16} or over. Winners are contacted by email after the draw.</p>`);
+    textParts.push(`${r.title}${/raffle/i.test(r.title) ? '' : ' raffle'}: ticket number(s) ${list}. ${numbers.length} x ${money(r.ticket_price_pence)}. Draw ${fmtDate(r.draw_at)} ${fmtTime(r.draw_at)}. Keep this email, it is your ticket. Promoted by Minster More${r.promoter_name ? `; promoter ${r.promoter_name}${r.promoter_address ? `, ${r.promoter_address}` : ''}` : ''}.${r.registration ? ' ' + r.registration + '.' : ''}`);
+  }
   for (const t of tickets) {
     const ev = events[t.ref_id];
     if (!ev) continue;
@@ -223,15 +248,17 @@ function paymentThanks({ name, items, giftAid, wallName, events = {}, totalPence
     textParts.push(`${ev.title}: ${t.qty} ticket(s), ${fmtDate(ev.starts_at)} ${fmtTime(ev.starts_at)}${ev.location ? `, ${ev.location}` : ''}. Give your name on the door.`);
   }
 
-  const kinds = [donation && 'donation', membership && 'membership', fiftyQty && 'fifty', tickets.length && 'tickets'].filter(Boolean);
+  const kinds = [donation && 'donation', membership && 'membership', fiftyQty && 'fifty', tickets.length && 'tickets', raffleItems.length && 'raffle'].filter(Boolean);
   const subject = kinds.length > 1 ? 'Thank you for supporting Minster More'
     : membership ? 'Welcome to Future Makers'
     : donation ? 'Thank you for your donation'
     : fiftyQty ? `You're in the 50:50 Club for ${term}`
+    : raffleItems.length ? `Your raffle ticket${raffleItems.reduce((n, i) => n + i.qty, 0) === 1 ? '' : 's'}: good luck!`
     : tickets.length === 1 && events[tickets[0].ref_id] ? `Your tickets for ${events[tickets[0].ref_id].title}` : 'Your tickets';
   const intro = membership ? "Thank you for becoming a Future Maker. Your monthly support makes more possible for every Minster student."
     : donation ? 'Thank you for your donation. Every pound goes to what Minster students need, chosen by the school community.'
     : fiftyQty && !tickets.length ? "Thanks for joining the 50:50 Club. Good luck in the draw, and thank you for helping fund student resources."
+    : raffleItems.length && !tickets.length ? 'Thanks for entering the raffle. Good luck, and thank you for supporting Minster students and our local businesses.'
     : 'Thank you for your order. Here are your details.';
   if (attachments.length) parts.push(`<p style="margin:0 0 6px;font:15px/1.6 ${FONT};color:${NAVY};">We've attached ${attachments.length === 1 ? 'a calendar entry' : 'calendar entries'} so you can save the date.</p>`);
   if (kinds.length > 1 && totalPence) parts.push(`<p style="margin:12px 0 0;font:15px/1.6 ${FONT};color:${NAVY};">Total paid today: <b>${money(totalPence)}</b></p>`);
@@ -243,7 +270,7 @@ function paymentThanks({ name, items, giftAid, wallName, events = {}, totalPence
       heading: `Thank you, ${firstName(name)}!`,
       intro,
       body: parts.join(''),
-      cta: membership ? { label: 'See where the money goes', href: `${SITE}/#/money` } : tickets.length ? { label: 'See all our events', href: `${SITE}/#/events` } : { label: 'See where the money goes', href: `${SITE}/#/money` },
+      cta: membership ? { label: 'See where the money goes', href: `${SITE}/#/money` } : raffleItems.length && !tickets.length ? { label: 'See the raffle prizes', href: `${SITE}/#/raffle` } : tickets.length ? { label: 'See all our events', href: `${SITE}/#/events` } : { label: 'See where the money goes', href: `${SITE}/#/money` },
       footerNote: `Your payment receipt comes separately from our payment provider, Stripe. Any questions? Just reply to this email or contact <a href="mailto:finance@minstermore.org.uk" style="color:${NAVY};">finance@minstermore.org.uk</a>.`,
     }),
     text: `Thank you, ${String(name || 'there').split(' ')[0]}!\n\n${intro}\n\n${textParts.join('\n\n')}\n\nAny questions? Reply to this email or contact finance@minstermore.org.uk.\n\nThe Minster More committee\n${SITE}`,

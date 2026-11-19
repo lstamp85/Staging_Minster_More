@@ -4,6 +4,7 @@
 // and public form submissions (suggestions, votes, volunteers, reservations).
 
 const path = require('path');
+const crypto = require('crypto');
 const express = require('express');
 const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
@@ -104,6 +105,40 @@ async function ticketsTaken(eventId) {
 }
 
 // ---------------------------------------------------------------------
+// Raffles
+// ---------------------------------------------------------------------
+async function raffleTicketsSold(raffleId) {
+  const { count } = await db.from('raffle_tickets').select('id', { count: 'exact', head: true }).eq('raffle_id', raffleId);
+  return count || 0;
+}
+const raffleOnSale = r => r && r.status === 'live' && new Date(r.draw_at) > new Date();
+// The raffle shown on the website: one on sale, else the latest one (results stay up for 60 days)
+async function publicRaffle() {
+  const { data, error } = await db.from('raffles').select('*').neq('status', 'draft').order('draw_at', { ascending: false }).limit(5);
+  if (error) throw error;
+  const recent = (data || []).filter(r => r.status !== 'drawn' || new Date(r.draw_at) > Date.now() - 60 * 86400_000);
+  const r = recent.find(raffleOnSale) || recent.find(x => x.status === 'live' || x.status === 'closed') || recent[0];
+  if (!r) return null;
+  const [{ data: prizes }, sold] = await Promise.all([
+    db.from('raffle_prizes').select('*').eq('raffle_id', r.id).eq('approved', true).order('sort').order('created_at'),
+    raffleTicketsSold(r.id),
+  ]);
+  const showResults = r.status === 'drawn' && r.results_published;
+  return {
+    id: r.id, title: r.title, blurb: r.blurb, ticket_price_pence: r.ticket_price_pence, draw_at: r.draw_at,
+    min_age: r.min_age, promoter_name: r.promoter_name, promoter_address: r.promoter_address, registration: r.registration,
+    status: r.status, on_sale: raffleOnSale(r) && (!r.max_tickets || sold < r.max_tickets),
+    remaining: r.max_tickets ? Math.max(0, r.max_tickets - sold) : null, sold,
+    results: showResults,
+    prizes: (prizes || []).map(p => ({
+      id: p.id, title: p.title, description: p.description, value_pence: p.value_pence, image_url: p.image_url,
+      sponsor_name: p.sponsor_name, sponsor_url: p.sponsor_url, sponsor_logo_url: p.sponsor_logo_url,
+      winner_number: showResults ? p.winner_number : null, winner_display: showResults ? p.winner_display : null,
+    })),
+  };
+}
+
+// ---------------------------------------------------------------------
 // Stripe webhook (needs the raw body, so it's registered before JSON parsing)
 // ---------------------------------------------------------------------
 app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
@@ -187,6 +222,15 @@ async function handlePaidSession(s) {
     })));
   }
 
+  // Raffle tickets: give out numbers in order
+  const raffles = {};
+  for (const it of items.filter(i => i.kind === 'raffle')) {
+    const { data: numbers, error: rErr } = await db.rpc('assign_raffle_tickets', { p_raffle: it.ref_id, p_order: orderId, p_qty: it.qty, p_name: name, p_email: email });
+    if (rErr) { console.error('Could not assign raffle tickets', orderId, rErr.message); continue; }
+    const { data: r } = await db.from('raffles').select('*').eq('id', it.ref_id).maybeSingle();
+    if (r) raffles[r.id] = { raffle: r, numbers: numbers || [] };
+  }
+
   // Donations and memberships go straight onto the totaliser
   const funds = [];
   if (donation > 0) funds.push({ amount_pence: donation, label: 'Online donation', source: 'online', gift_aid_id: giftAidId, stripe_ref: `${s.id}:donation` });
@@ -220,7 +264,7 @@ async function handlePaidSession(s) {
       }
       const onlyTickets = items.every(i => i.kind === 'ticket');
       await sendEmail({
-        ...mail.paymentThanks({ name, items, giftAid: Boolean(order.gift_aid), wallName: order.wall_name, events, totalPence: order.total_pence }),
+        ...mail.paymentThanks({ name, items, giftAid: Boolean(order.gift_aid), wallName: order.wall_name, events, raffles, totalPence: order.total_pence }),
         to: email, replyTo: onlyTickets ? 'events@minstermore.org.uk' : 'finance@minstermore.org.uk',
       });
     } catch (err) {
@@ -242,6 +286,57 @@ async function handleRenewal(inv) {
   }, { onConflict: 'stripe_ref', ignoreDuplicates: true });
   bustCache();
 }
+
+// ---------------------------------------------------------------------
+// A local business offers a raffle prize (logo sent as a data URL)
+// ---------------------------------------------------------------------
+const LOGO_TYPES = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/svg+xml': 'svg', 'image/gif': 'gif' };
+app.post('/api/raffle-offer', rateLimit(5), express.json({ limit: '3mb' }), async (req, res) => {
+  if (needDb(res)) return;
+  const b = req.body || {};
+  const business = str(b.business, 120), contact = str(b.contact_name, 120), email = str(b.email, 200);
+  const prize = str(b.prize, 140), description = str(b.description, 800), phone = str(b.phone, 40);
+  let url = str(b.website, 300);
+  const value = int(b.value);
+  if (!business || !prize) return res.status(400).json({ error: 'Add your business name and the prize.' });
+  if (!contact || !EMAIL_RE.test(email)) return res.status(400).json({ error: 'Add your name and a valid email so we can thank you.' });
+  if (url && !/^https?:\/\//i.test(url)) url = 'https://' + url;
+  if (url && !/^https?:\/\/[^\s<>"]+\.[^\s<>"]+$/i.test(url)) url = null;
+  const { data: open } = await db.from('raffles').select('id,status,draw_at').in('status', ['draft', 'live']).order('draw_at').limit(5);
+  const target = (open || []).find(r => new Date(r.draw_at) > new Date());
+  let logoUrl = null;
+  const m = /^data:(image\/[a-z+.-]+);base64,([A-Za-z0-9+/=]+)$/.exec(String(b.logo || ''));
+  if (m && LOGO_TYPES[m[1]]) {
+    const bytes = Buffer.from(m[2], 'base64');
+    if (bytes.length > 2 * 1024 * 1024) return res.status(400).json({ error: 'The logo must be under 2MB.' });
+    const path = `raffle/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${LOGO_TYPES[m[1]]}`;
+    const { error: upErr } = await db.storage.from('files').upload(path, bytes, { contentType: m[1], upsert: false });
+    if (!upErr) logoUrl = db.storage.from('files').getPublicUrl(path).data.publicUrl;
+    else console.error('Logo upload failed:', upErr.message);
+  }
+  const { error } = await db.from('raffle_prizes').insert({
+    raffle_id: target ? target.id : null, title: prize, description: description || null,
+    value_pence: Number.isFinite(value) && value > 0 ? Math.min(value, 25000) * 100 : null,
+    sponsor_name: business, sponsor_url: url || null, sponsor_logo_url: logoUrl,
+    contact_name: contact, contact_email: email, contact_phone: phone || null, approved: false, sort: 100,
+  });
+  if (error) return res.status(500).json({ error: 'Could not send that — please email hello@minstermore.org.uk.' });
+  res.json({ ok: true });
+  if (process.env.RESEND_API_KEY) {
+    sendEmail({ ...mail.committeeNotice({
+      subject: `Raffle prize offered: ${business}`,
+      heading: `${mail.esc(business)} has offered a raffle prize`,
+      intro: 'A local business filled in the prize form on the website. Approve it in the admin area to show it on the raffle page.',
+      rows: [
+        ['Prize', `<b>${mail.esc(prize)}</b>`], ['Value', Number.isFinite(value) && value > 0 ? `£${value}` : ''],
+        ['Details', mail.esc(description)], ['Contact', mail.esc(contact)],
+        ['Email', `<a href="mailto:${mail.esc(email)}" style="color:#131f35;">${mail.esc(email)}</a>`], ['Phone', mail.esc(phone)],
+        ['Website', url ? mail.esc(url) : ''], ['Logo', logoUrl ? 'Uploaded' : 'Not sent'],
+      ],
+      cta: { label: 'Open the raffle in admin', href: `${mail.SITE}/admin` },
+    }), replyTo: email }).catch(e => console.error('Prize offer email failed:', e.message));
+  }
+});
 
 // ---------------------------------------------------------------------
 // Everything else uses JSON
@@ -278,6 +373,7 @@ app.get('/api/site', async (req, res) => {
 
     const voteMap = {};
     for (const v of votes.data) voteMap[v.idea_id] = (voteMap[v.idea_id] || 0) + 1;
+    const raffle = await publicRaffle().catch(err => { console.error('Raffle load failed:', err.message); return null; });
 
     // Only public fields leave the server: planning notes, private files and
     // unapproved supporters are never sent to the website.
@@ -320,6 +416,7 @@ app.get('/api/site', async (req, res) => {
       },
       raised_pence: funds.data.reduce((s, f) => s + f.amount_pence, 0),
       pots: potsOut,
+      raffle,
       ideas: ideas.data.map(i => ({ id: i.id, title: i.title, blurb: i.blurb, cost_pence: i.cost_pence, who: i.who, kind: i.kind || 'fund', created_at: i.created_at, votes: voteMap[i.id] || 0 })).sort((a, b) => b.votes - a.votes),
       events: evs,
       news: news.data,
@@ -549,6 +646,16 @@ app.post('/api/checkout', rateLimit(10), async (req, res) => {
         hasMembership = true;
         items.push({ kind: 'membership', label: 'Future Makers membership', qty: 1, unit_pence: 1000 });
         lineItems.push({ quantity: 1, price_data: { currency: 'gbp', unit_amount: 1000, recurring: { interval: 'month' }, product_data: { name: 'Future Makers — £10 a month' } } });
+      } else if (it.kind === 'raffle') {
+        const qty = int(it.qty);
+        const { data: r } = await db.from('raffles').select('*').eq('id', str(it.raffle_id, 64)).maybeSingle();
+        if (!raffleOnSale(r)) throw new Error('That raffle isn’t selling tickets any more.');
+        if (it.age_ok !== true) throw new Error(`You must be ${r.min_age} or over to buy raffle tickets.`);
+        if (!(qty >= 1 && qty <= 100)) throw new Error('Up to 100 raffle tickets at a time.');
+        if (r.max_tickets && (await raffleTicketsSold(r.id)) + qty > r.max_tickets) throw new Error('Not enough raffle tickets left.');
+        const drawText = new Date(r.draw_at).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Europe/London' });
+        items.push({ kind: 'raffle', ref_id: r.id, label: /raffle/i.test(r.title) ? `${r.title} ticket` : `${r.title} raffle ticket`, qty, unit_pence: r.ticket_price_pence });
+        lineItems.push({ quantity: qty, price_data: { currency: 'gbp', unit_amount: r.ticket_price_pence, product_data: { name: /raffle/i.test(r.title) ? `${r.title} ticket` : `${r.title} — raffle ticket`, description: `Draw: ${drawText}. Promoted by Minster More.` } } });
       } else if (it.kind === 'fifty') {
         const qty = int(it.qty);
         const term = currentTerm(settings?.fifty_term_label);
@@ -671,6 +778,35 @@ calendarRoutes(app, db);
 // ---------------------------------------------------------------------
 app.use('/vendor/supabase', express.static(path.dirname(require.resolve('@supabase/supabase-js/dist/umd/supabase.js')), { maxAge: '7d' }));
 app.use(express.static(path.join(__dirname, 'public'), { extensions: ['html'], maxAge: '5m' }));
+// Admin → Raffle → Draw: picks a different ticket at random for each prize
+app.post('/api/admin/raffle-draw', async (req, res) => {
+  const who = await requireAdmin(req, res);
+  if (!who) return;
+  const id = str(req.body.raffle_id, 64);
+  const { data: r } = await db.from('raffles').select('*').eq('id', id).maybeSingle();
+  if (!r) return res.status(404).json({ error: 'Raffle not found.' });
+  if (r.status === 'drawn') return res.status(400).json({ error: 'This raffle has already been drawn.' });
+  if (r.status === 'live' && new Date(r.draw_at) > new Date()) return res.status(400).json({ error: 'Close ticket sales before drawing.' });
+  const [{ data: tickets }, { data: prizes }] = await Promise.all([
+    db.from('raffle_tickets').select('number').eq('raffle_id', id),
+    db.from('raffle_prizes').select('id,title,sort,created_at').eq('raffle_id', id).eq('approved', true).order('sort').order('created_at'),
+  ]);
+  if (!prizes?.length) return res.status(400).json({ error: 'Add at least one prize first.' });
+  const pool = (tickets || []).map(t => t.number);
+  if (!pool.length) return res.status(400).json({ error: 'No tickets have been sold.' });
+  const results = [];
+  for (const p of prizes) {
+    if (!pool.length) break;
+    const n = pool.splice(crypto.randomInt(pool.length), 1)[0];
+    const { error } = await db.from('raffle_prizes').update({ winner_number: n }).eq('id', p.id);
+    if (error) return res.status(500).json({ error: error.message });
+    results.push({ prize_id: p.id, number: n });
+  }
+  await db.from('raffles').update({ status: 'drawn', drawn_at: new Date().toISOString(), drawn_by: who }).eq('id', id);
+  bustCache();
+  res.json({ ok: true, results, unawarded: prizes.length - results.length });
+});
+
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 app.listen(PORT, () => {
