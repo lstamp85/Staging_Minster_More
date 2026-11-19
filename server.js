@@ -794,15 +794,16 @@ app.post('/api/admin/raffle-draw', async (req, res) => {
   if (!prizes?.length) return res.status(400).json({ error: 'Add at least one prize first.' });
   const pool = (tickets || []).map(t => t.number);
   if (!pool.length) return res.status(400).json({ error: 'No tickets have been sold.' });
+  // Claim the draw first so two admins clicking at once can't both draw
+  const { data: claimed } = await db.from('raffles').update({ status: 'drawn', drawn_at: new Date().toISOString(), drawn_by: who }).eq('id', id).neq('status', 'drawn').select('id');
+  if (!claimed?.length) return res.status(400).json({ error: 'This raffle has already been drawn.' });
   const results = [];
   for (const p of prizes) {
     if (!pool.length) break;
     const n = pool.splice(crypto.randomInt(pool.length), 1)[0];
-    const { error } = await db.from('raffle_prizes').update({ winner_number: n }).eq('id', p.id);
-    if (error) return res.status(500).json({ error: error.message });
+    await db.from('raffle_prizes').update({ winner_number: n }).eq('id', p.id);
     results.push({ prize_id: p.id, number: n });
   }
-  await db.from('raffles').update({ status: 'drawn', drawn_at: new Date().toISOString(), drawn_by: who }).eq('id', id);
   bustCache();
   res.json({ ok: true, results, unawarded: prizes.length - results.length });
 });
