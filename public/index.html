@@ -624,7 +624,8 @@ let volunteerSent = false;
 let donation = {amount:2500, other:'', giftAid:false, ga:{full_name:'', house:'', postcode:''}};
 let basketForm = {giftAid:false, ga:{full_name:'', house:'', postcode:''}, wall_name:'', over18:false, raffleAge:false};
 let raffleQty = 5;
-let pre = null, preLoading = false, preCart = load('mm_preorder_cart', {}), preError = '';
+const PRE_PREVIEW = new URLSearchParams(location.search).get('preview') === '1';
+let pre = null, preLoaded = false, preLoading = false, preCart = load('mm_preorder_cart', {}), preError = '';
 let preForm = Object.assign({name:'', email:'', row:'', seat:'', over18:false, donation:null, other:'', giftAid:false, ga:{full_name:'', house:'', postcode:''}}, load('mm_preorder_form', {}), {over18:false});
 function savePre(){ save('mm_preorder_cart', preCart); const {over18, ...keep} = preForm; save('mm_preorder_form', keep); }
 let offerForm = {business:'', contact_name:'', email:'', phone:'', website:'', prize:'', description:'', value:''}, offerSent = false, offerLogo = null;
@@ -1180,9 +1181,9 @@ async function submitOffer(btn){
 /* ---------------- REFRESHMENT PRE-ORDERS ---------------- */
 async function loadPreorder(){
   if(preLoading) return; preLoading = true;
-  try{ const r = await fetch('/api/refreshments'); const j = await r.json(); pre = j.preorder; pre && (pre.payments = j.payments); }
+  try{ const r = await fetch('/api/refreshments' + (PRE_PREVIEW ? '?preview=1' : '')); const j = await r.json(); pre = j.preorder; pre && (pre.payments = j.payments); }
   catch(e){ preError = 'The menu couldn’t load. Please refresh the page.'; }
-  preLoading = false;
+  preLoading = false; preLoaded = true;
   if(pre){ for(const id of Object.keys(preCart)){ const p = pre.products.find(x=>x.id===id); if(!p || p.sold_out) delete preCart[id]; else preCart[id] = Math.min(preCart[id], p.max); } savePre(); }
   if(page==='refreshments') render();
 }
@@ -1211,15 +1212,15 @@ function preorderBand(){
 function preQty(p){
   const q = preCart[p.id]||0;
   if(p.sold_out) return `<span class="chip chip-line">Sold out</span>`;
-  if(!q) return `<button class="btn btn-ink pre-add" data-pre-add="${p.id}" ${pre.state!=='open'?'disabled':''}>Add</button>`;
+  if(!q) return `<button class="btn btn-ink pre-add" data-pre-add="${p.id}" ${!['open','preview'].includes(pre.state)?'disabled':''}>Add</button>`;
   return `<div class="stepper pre-stepper"><button data-pre-qty="${p.id}:-1" aria-label="One fewer ${esc(p.name)}">−</button><span class="count">${q}</span><button data-pre-qty="${p.id}:1" aria-label="One more ${esc(p.name)}" ${q>=p.max?'disabled':''}>+</button></div>`;
 }
 
 function preBasket(){
   const lines = preLines(), sub = preSubtotal(), don = preDonation(), alcohol = lines.some(l=>l.p.alcohol);
   const collect = lines.some(l=>l.p.delivery.includes('collect')), seat = lines.some(l=>l.p.delivery.includes('seat'));
-  if(pre.state!=='open') return '';
-  if(!pre.payments) return `<div class="form-panel"><h3>Online ordering opens shortly</h3></div>`;
+  if(!['open','preview'].includes(pre.state)) return '';
+  if(!pre.payments && pre.state!=='preview') return `<div class="form-panel"><h3>Online ordering opens shortly</h3></div>`;
   return `
     <div class="form-panel pre-panel" id="preOrder">
       <h3>Your order</h3>
@@ -1257,17 +1258,18 @@ function preBasket(){
         <div><span>Optional PTA donation</span><span>${money(don)}</span></div>
         <div class="grand"><span>Total payable</span><span>${money(sub+don)}</span></div>
       </div>
-      <button class="btn btn-coral btn-big" id="prePay" style="width:100%;" ${!lines.length||busy?'disabled':''}>${busy?'Taking you to payment…':`Pay ${money(sub+don)}`}</button>
+      <button class="btn btn-coral btn-big" id="prePay" style="width:100%;" ${!lines.length||busy||pre.state==='preview'?'disabled':''}>${pre.state==='preview'?'Paying opens when pre-orders go live':busy?'Taking you to payment…':`Pay ${money(sub+don)}`}</button>
       <p class="pre-small" style="margin-top:12px;text-align:center;">Secure payment by Stripe. Apple Pay and Google Pay where available.</p>
     </div>`;
 }
 
 function pageRefreshments(){
-  if(!pre && !preError){ loadPreorder(); return `<div class="wrap loading">Loading the menu…</div>`; }
+  if(!pre && !preError && !preLoaded){ loadPreorder(); return `<div class="wrap loading">Loading the menu…</div>`; }
   if(!pre) return `<div class="wrap page-head"><div class="eyebrow">Refreshments</div><h1>Pre-orders aren’t open right now.</h1><p class="intro">${esc(preError || 'Check back before our next event.')}</p></div>`;
   const bundles = pre.products.filter(p=>p.kind==='bundle'), singles = pre.products.filter(p=>p.kind!=='bundle');
   const banner = {
     soon: `Pre-orders open ${esc(fmtDayTime(pre.opens_at))}. Have a look at the menu in the meantime.`,
+    preview: 'Preview: this page isn’t on the website yet, and paying is switched off. You can add items to see how ordering works.',
     paused: 'Online pre-orders are paused for now. Please check back soon.',
     closed: 'Online pre-orders are now closed. Refreshments will still be available to purchase at our stalls on the evening.',
     full: 'Online pre-orders are now closed. Refreshments will still be available to purchase at our stalls on the evening.',
@@ -1286,7 +1288,7 @@ function pageRefreshments(){
       ${banner ? `<div class="pre-banner" role="status">${banner}</div>` : ''}
     </div>
     <div class="wrap">
-      <div class="${pre.state==='open'?'two-col':''} pre-layout">
+      <div class="${['open','preview'].includes(pre.state)?'two-col':''} pre-layout">
         <div>
           ${bundles.length ? `<h2 class="pre-h2">Festive bundles</h2>
           <div class="pre-bundles">${bundles.map(p=>`
@@ -1303,7 +1305,7 @@ function pageRefreshments(){
         <div>${preBasket()}</div>
       </div>
     </div>
-    ${pre.state==='open' && count ? `<a class="pre-bar" href="#preOrder" data-pre-jump>View order · ${count} item${count===1?'':'s'} · ${money(preSubtotal()+preDonation())}</a>` : ''}`;
+    ${['open','preview'].includes(pre.state) && count ? `<a class="pre-bar" href="#preOrder" data-pre-jump>View order · ${count} item${count===1?'':'s'} · ${money(preSubtotal()+preDonation())}</a>` : ''}`;
 }
 
 async function preCheckout(){

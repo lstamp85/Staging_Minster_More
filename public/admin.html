@@ -987,7 +987,7 @@ async function refreshView(){
   }
   return `
     <div class="head no-print"><div><h1>Refreshments</h1><p>Interval pre-orders: seat delivery and express collection.</p></div>
-      <div class="actions"><button class="btn btn-ghost" id="preExport">Export orders</button><a class="btn btn-ghost" href="/#/refreshments" target="_blank">View page ↗</a></div></div>
+      <div class="actions"><button class="btn btn-ghost" id="preExport">Export orders</button><a class="btn btn-ghost" href="/?preview=1#/refreshments" target="_blank">Preview page ↗</a></div></div>
     ${events.length>1?`<div class="seg no-print">${events.map(x=>`<button class="${x.id===ev.id?'on':''}" data-sub="${x.id}">${esc(x.title)}</button>`).join('')}</div>`:''}
     <div class="card no-print"><div class="raffle-head"><div><h2>${esc(ev.title)}</h2><p class="muted" style="margin:6px 0 0;">${ev.event_date?esc(new Date(ev.event_date+'T12:00:00Z').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})):''} · ordering ${ev.opens_at?d(ev.opens_at,true):'now'} to ${ev.closes_at?d(ev.closes_at,true):'when closed'}</p></div>
       <span class="chip ${st==='open'?'ok':st==='draft'?'':'coral'}">${esc(stLabel)}</span></div>

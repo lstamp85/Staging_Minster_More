@@ -142,8 +142,10 @@ function preorderState(ev) {
   return ev.status === 'open' ? 'open' : null;
 }
 // The event shown on the website: not a draft, and not more than a day past
-async function currentShopEvent() {
-  const { data, error } = await db.from('shop_events').select('*').neq('status', 'draft').order('event_date', { ascending: false }).limit(5);
+async function currentShopEvent(includeDraft = false) {
+  let q = db.from('shop_events').select('*');
+  if (!includeDraft) q = q.neq('status', 'draft');
+  const { data, error } = await q.order('event_date', { ascending: false }).limit(5);
   if (error) throw error;
   const yesterday = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
   return (data || []).find(e => !e.event_date || e.event_date >= yesterday) || null;
@@ -171,9 +173,10 @@ function preorderSplit(items, products, stock) {
   }
   return { seat, collect };
 }
-async function publicPreorder() {
-  const ev = await currentShopEvent();
-  const state = preorderState(ev);
+async function publicPreorder(preview = false) {
+  const ev = await currentShopEvent(preview);
+  let state = preorderState(ev);
+  if (ev && preview && (ev.status === 'draft' || !state)) state = 'preview';
   if (!ev || !state) return null;
   const [{ data: products }, stock] = await Promise.all([
     db.from('shop_products').select('*').eq('event_id', ev.id).eq('active', true).order('sort'),
@@ -194,7 +197,7 @@ async function publicPreorder() {
       const max = comps.length ? Math.min(...comps.map(c => Math.floor(c.st.left / c.qty))) : 0;
       return {
         id: p.id, name: p.name, description: p.description, kind: p.kind, price_pence: p.price_pence,
-        max: Math.min(max, 20), sold_out: max <= 0,
+        max: state === 'preview' ? 20 : Math.min(max, 20), sold_out: state === 'preview' ? false : max <= 0,
         alcohol: comps.some(c => c.st.alcohol),
         delivery: [...new Set(comps.map(c => c.st.delivery))],
       };
@@ -902,7 +905,7 @@ app.use(express.static(path.join(__dirname, 'public'), { extensions: ['html'], m
 // ---------------------------------------------------------------------
 app.get('/api/refreshments', async (req, res) => {
   if (needDb(res)) return;
-  try { res.json({ preorder: await publicPreorder(), payments: Boolean(stripe) }); }
+  try { res.json({ preorder: await publicPreorder(req.query.preview === '1'), payments: Boolean(stripe) }); }
   catch (err) { console.error('Refreshments load failed:', err.message); res.json({ preorder: null, payments: Boolean(stripe) }); }
 });
 
