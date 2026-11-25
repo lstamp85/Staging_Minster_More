@@ -297,4 +297,40 @@ function reservationConfirm({ name, ev, qty }) {
   };
 }
 
-module.exports = { paymentThanks, reservationConfirm, layout, detailsPanel, sectionTitle, nextSteps, eventSignupThanks, volunteerRegistrationThanks, committeeNotice, esc, fmtDate, fmtTime, SITE };
+// Refreshment pre-order confirmation
+function preorderThanks({ name, ref, ev, order, items, split, giftAid }) {
+  const money = p => '£' + (p / 100).toFixed(2).replace(/\.00$/, '');
+  const list = obj => Object.entries(obj).map(([n, q]) => `${q} × ${esc(n)}`).join('<br>');
+  const refresh = items.filter(i => i.kind === 'refreshment');
+  const sub = refresh.reduce((t, i) => t + i.unit_pence * i.qty, 0);
+  const donation = items.filter(i => i.kind === 'donation').reduce((t, i) => t + i.unit_pence * i.qty, 0);
+  const hasSeat = Object.keys(split.seat).length > 0, hasCollect = Object.keys(split.collect).length > 0;
+  const seatText = `Row ${esc(order.seat_row)}, seat ${esc(order.seat_number)}`;
+  const parts = [];
+  parts.push(`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 22px;background:${NAVY};border-radius:14px;"><tr><td style="padding:18px 22px;font:14px/1.4 ${FONT};color:#c9cfdb;">Your order reference<br><b style="font:800 30px/1.2 ${FONT};color:#ffffff;letter-spacing:2px;">${esc(ref)}</b></td></tr></table>`);
+  if (hasSeat) parts.push(sectionTitle('Delivered to your seat in the interval') + detailsPanel([['Seat', `<b>${seatText}</b>`], ['Items', list(split.seat)]]));
+  if (hasCollect) parts.push(sectionTitle('Collect from the express point') + detailsPanel([['Items', list(split.collect)], ['Where', esc(ev.collection_point || 'The express collection point')], ['Show', `This email, or say your reference <b>${esc(ref)}</b>`]]) +
+    (hasSeat ? `<p style="margin:-6px 0 18px;font:14px/1.6 ${FONT};color:${INK_SOFT};">Hot drinks aren’t carried through the rows, so your mulled wine is ready to collect, and everything else comes to your seat.</p>` : ''));
+  parts.push(sectionTitle('Your order') + detailsPanel([
+    ...refresh.map(i => [`${i.qty} × ${esc(i.label)}`, money(i.unit_pence * i.qty)]),
+    ['Refreshments', money(sub)],
+    ...(donation ? [['Donation to Minster More', money(donation) + (giftAid ? ' + Gift Aid' : '')]] : []),
+    ['<b>Total paid</b>', `<b>${money(sub + donation)}</b>`],
+  ]));
+  const alcohol = /wine|prosecco|beer|gin/i.test(refresh.map(i => i.label).join(' '));
+  return {
+    subject: `Your interval refreshments are booked (${ref})`,
+    html: layout({
+      preheader: `Order ${ref}: ${hasSeat ? 'delivered to ' + `row ${order.seat_row}, seat ${order.seat_number}` : ''}${hasSeat && hasCollect ? ', ' : ''}${hasCollect ? 'mulled wine to collect' : ''}.`,
+      heading: 'Your interval order is booked',
+      intro: `Thanks${name ? ', ' + esc(String(name).split(' ')[0]) : ''}! Enjoy the performance${ev.event_date ? ` on ${esc(fmtDate(ev.event_date + 'T19:00:00Z'))}` : ''}. Our volunteers will have everything ready in the interval, so there’s no need to queue.`,
+      body: parts.join('') + (alcohol ? `<p style="margin:0 0 14px;font:14px/1.6 ${FONT};color:${INK_SOFT};">Alcohol is only served to people aged 18 or over. Our volunteers may ask for ID.</p>` : '') +
+        (donation ? `<p style="margin:0 0 14px;font:14px/1.6 ${FONT};color:${INK_SOFT};">Thank you for your donation to Southwell Minster School PTA (registered charity 516332)${giftAid ? ', and for adding Gift Aid' : ''}.</p>` : ''),
+      footerNote: 'Can’t make it, or need to change your seat? Reply to this email before the event.',
+      signoff: 'See you in the interval!<br><b style="color:#131f35;">The Minster More team</b>',
+    }),
+    text: `Your interval order ${ref} is booked.\n${hasSeat ? `Delivered to row ${order.seat_row}, seat ${order.seat_number}: ${Object.entries(split.seat).map(([n, q]) => q + ' x ' + n).join(', ')}.\n` : ''}${hasCollect ? `Collect from ${ev.collection_point || 'the express collection point'}: ${Object.entries(split.collect).map(([n, q]) => q + ' x ' + n).join(', ')}. Show this email or quote ${ref}.\n` : ''}Refreshments ${money(sub)}${donation ? `, donation ${money(donation)}` : ''}, total ${money(sub + donation)}.`,
+  };
+}
+
+module.exports = { paymentThanks, preorderThanks, reservationConfirm, layout, detailsPanel, sectionTitle, nextSteps, eventSignupThanks, volunteerRegistrationThanks, committeeNotice, esc, fmtDate, fmtTime, SITE };

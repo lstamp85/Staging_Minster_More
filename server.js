@@ -25,7 +25,9 @@ const db = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
   ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } })
   : null;
 const STRIPE_KEY = (STRIPE_SECRET_KEY || '').trim().replace(/^["']|["']$/g, '');
-const stripe = STRIPE_KEY ? new Stripe(STRIPE_KEY) : null;
+// STRIPE_API_HOST is only for local testing against a stand-in Stripe (e.g. localhost:12111)
+const stripeLocal = /^localhost:\d+$/.test(process.env.STRIPE_API_HOST || '') ? { host: 'localhost', port: Number(process.env.STRIPE_API_HOST.split(':')[1]), protocol: 'http' } : undefined;
+const stripe = STRIPE_KEY ? new Stripe(STRIPE_KEY, stripeLocal) : null;
 // Several webhooks (e.g. www and non-www) each have their own secret: allow a comma-separated list
 const WEBHOOK_SECRETS = (STRIPE_WEBHOOK_SECRET || '').split(/[,\s]+/).map(v => v.trim().replace(/^["']|["']$/g, '')).filter(v => v.startsWith('whsec_'));
 if (STRIPE_KEY && !/^(sk|rk)_(live|test)_/.test(STRIPE_KEY)) {
@@ -105,6 +107,102 @@ async function ticketsTaken(eventId) {
 }
 
 // ---------------------------------------------------------------------
+// Refreshment pre-orders
+// ---------------------------------------------------------------------
+const ROW_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+// "A-K", "A,B,C" or "A-H,J-K" → ['A',…]
+function expandRows(spec) {
+  const out = [];
+  for (const part of String(spec || '').toUpperCase().split(',').map(x => x.trim()).filter(Boolean)) {
+    const m = /^([A-Z]{1,2})\s*-\s*([A-Z]{1,2})$/.exec(part);
+    if (m && m[1].length === 1 && m[2].length === 1) { const a = ROW_LETTERS.indexOf(m[1]), b = ROW_LETTERS.indexOf(m[2]); for (let i = a; i <= b; i++) out.push(ROW_LETTERS[i]); }
+    else if (/^[A-Z]{1,2}$/.test(part)) out.push(part);
+  }
+  return [...new Set(out)];
+}
+function inSeatRange(spec, seat) {
+  const n = parseInt(String(seat).replace(/\D/g, ''), 10);
+  if (!Number.isFinite(n) || !/^\d+$/.test(String(seat).trim())) return false;
+  return String(spec || '').split(',').some(part => {
+    const m = /^\s*(\d+)\s*(?:-\s*(\d+))?\s*$/.exec(part); if (!m) return false;
+    const a = +m[1], b = m[2] ? +m[2] : a; return n >= a && n <= b;
+  });
+}
+function zoneFor(seating, row, seat) {
+  const r = String(row || '').toUpperCase().trim();
+  const z = (seating?.zones || []).find(z => expandRows(z.rows).includes(r) && inSeatRange(z.seats, seat));
+  return z ? String(z.zone) : null;
+}
+function preorderState(ev) {
+  if (!ev) return null;
+  const now = Date.now();
+  if (ev.status === 'closed' || (ev.closes_at && new Date(ev.closes_at) <= now)) return 'closed';
+  if (ev.status === 'paused') return 'paused';
+  if (ev.opens_at && new Date(ev.opens_at) > now) return 'soon';
+  return ev.status === 'open' ? 'open' : null;
+}
+// The event shown on the website: not a draft, and not more than a day past
+async function currentShopEvent() {
+  const { data, error } = await db.from('shop_events').select('*').neq('status', 'draft').order('event_date', { ascending: false }).limit(5);
+  if (error) throw error;
+  const yesterday = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+  return (data || []).find(e => !e.event_date || e.event_date >= yesterday) || null;
+}
+async function shopAvailability(eventId) {
+  const [{ data: stock }, { data: holds }] = await Promise.all([
+    db.from('shop_stock').select('*').eq('event_id', eventId).order('sort'),
+    db.from('shop_holds').select('stock_id,qty,status,expires_at').eq('event_id', eventId).in('status', ['held', 'sold']),
+  ]);
+  const used = {};
+  const now = Date.now();
+  for (const h of holds || []) if (h.status === 'sold' || new Date(h.expires_at) > now) used[h.stock_id] = (used[h.stock_id] || 0) + h.qty;
+  return (stock || []).map(st => ({ ...st, used: used[st.id] || 0, left: Math.max(0, st.available - (used[st.id] || 0)) }));
+}
+// What goes to the seat and what is collected, as unit counts per stock item
+function preorderSplit(items, products, stock) {
+  const pById = Object.fromEntries(products.map(p => [p.id, p])), sById = Object.fromEntries(stock.map(s => [s.id, s]));
+  const seat = {}, collect = {};
+  for (const it of items.filter(i => i.kind === 'refreshment')) {
+    for (const c of pById[it.ref_id]?.components || []) {
+      const st = sById[c.stock_id]; if (!st) continue;
+      const bag = st.delivery === 'collect' ? collect : seat;
+      bag[st.name] = (bag[st.name] || 0) + c.qty * it.qty;
+    }
+  }
+  return { seat, collect };
+}
+async function publicPreorder() {
+  const ev = await currentShopEvent();
+  const state = preorderState(ev);
+  if (!ev || !state) return null;
+  const [{ data: products }, stock] = await Promise.all([
+    db.from('shop_products').select('*').eq('event_id', ev.id).eq('active', true).order('sort'),
+    shopAvailability(ev.id),
+  ]);
+  const byId = Object.fromEntries(stock.map(st => [st.id, st]));
+  let ordersFull = false;
+  if (ev.max_orders) {
+    const { data: h } = await db.from('shop_holds').select('order_id,status,expires_at').eq('event_id', ev.id).in('status', ['held', 'sold']);
+    ordersFull = new Set((h || []).filter(x => x.status === 'sold' || new Date(x.expires_at) > Date.now()).map(x => x.order_id)).size >= ev.max_orders;
+  }
+  return {
+    id: ev.id, title: ev.title, event_date: ev.event_date, opens_at: ev.opens_at, closes_at: ev.closes_at,
+    state: state === 'open' && ordersFull ? 'full' : state, collection_point: ev.collection_point,
+    rows: expandRows(ev.seating?.rows || 'A-Z'), accessible: ev.seating?.accessible || null,
+    products: (products || []).map(p => {
+      const comps = (p.components || []).map(c => ({ ...c, st: byId[c.stock_id] })).filter(c => c.st && c.qty > 0);
+      const max = comps.length ? Math.min(...comps.map(c => Math.floor(c.st.left / c.qty))) : 0;
+      return {
+        id: p.id, name: p.name, description: p.description, kind: p.kind, price_pence: p.price_pence,
+        max: Math.min(max, 20), sold_out: max <= 0,
+        alcohol: comps.some(c => c.st.alcohol),
+        delivery: [...new Set(comps.map(c => c.st.delivery))],
+      };
+    }),
+  };
+}
+
+// ---------------------------------------------------------------------
 // Raffles
 // ---------------------------------------------------------------------
 async function raffleTicketsSold(raffleId) {
@@ -164,6 +262,7 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async
         const s = event.data.object;
         if (s.client_reference_id) {
           await db.from('orders').update({ status: 'expired' }).eq('id', s.client_reference_id).eq('status', 'pending');
+          await db.from('shop_holds').update({ status: 'released' }).eq('order_id', s.client_reference_id).eq('status', 'held');
         }
         break;
       }
@@ -195,12 +294,13 @@ async function handlePaidSession(s) {
   // admin sync can never record the same payment twice.
   const { data: claimed, error: claimErr } = await db.from('orders').update({
     status: 'paid', paid_at: new Date().toISOString(), stripe_session: s.id,
-    email, name, stripe_customer: customer, stripe_subscription: subscription,
+    email: email || order.email, name: order.preorder_event ? (order.name || name) : name, stripe_customer: customer, stripe_subscription: subscription,
   }).eq('id', orderId).neq('status', 'paid').select('id');
   if (claimErr) throw new Error('Could not mark order paid: ' + claimErr.message);
   if (!claimed?.length) return false;
 
   const items = order.items || [];
+  if (order.preorder_event) await db.from('shop_holds').update({ status: 'sold' }).eq('order_id', orderId).in('status', ['held', 'released']);
   const donation = items.filter(i => i.kind === 'donation').reduce((t, i) => t + i.unit_pence * i.qty, 0);
   const membership = items.find(i => i.kind === 'membership');
 
@@ -233,7 +333,7 @@ async function handlePaidSession(s) {
 
   // Donations and memberships go straight onto the totaliser
   const funds = [];
-  if (donation > 0) funds.push({ amount_pence: donation, label: 'Online donation', source: 'online', gift_aid_id: giftAidId, stripe_ref: `${s.id}:donation` });
+  if (donation > 0) funds.push({ amount_pence: donation, label: order.preorder_event ? 'Donation with refreshments pre-order' : 'Online donation', source: 'online', gift_aid_id: giftAidId, stripe_ref: `${s.id}:donation` });
   if (membership) funds.push({ amount_pence: membership.unit_pence, label: 'Future Makers — first month', source: 'online', gift_aid_id: giftAidId, stripe_ref: `${s.id}:membership` });
   if (funds.length) {
     const { error: fundErr } = await db.from('funds').upsert(funds, { onConflict: 'stripe_ref', ignoreDuplicates: true });
@@ -252,6 +352,22 @@ async function handlePaidSession(s) {
     }
   }
   bustCache();
+
+  // Pre-order confirmation (what comes to the seat, what to collect)
+  if (order.preorder_event) {
+    if (process.env.RESEND_API_KEY && (email || order.email)) {
+      try {
+        const [{ data: ev }, { data: products }, { data: stock }] = await Promise.all([
+          db.from('shop_events').select('*').eq('id', order.preorder_event).single(),
+          db.from('shop_products').select('id,components').eq('event_id', order.preorder_event),
+          db.from('shop_stock').select('id,name,delivery').eq('event_id', order.preorder_event),
+        ]);
+        const split = preorderSplit(items, products || [], stock || []);
+        await sendEmail({ to: email || order.email, ...mail.preorderThanks({ name: order.name, ref: order.ref, ev, order, items, split, giftAid: Boolean(order.gift_aid) }) });
+      } catch (err) { console.error('Pre-order email failed', orderId, err.message); }
+    }
+    return true;
+  }
 
   // Branded thank-you (Stripe sends the payment receipt separately)
   if (process.env.RESEND_API_KEY && email) {
@@ -374,6 +490,8 @@ app.get('/api/site', async (req, res) => {
     const voteMap = {};
     for (const v of votes.data) voteMap[v.idea_id] = (voteMap[v.idea_id] || 0) + 1;
     const raffle = await publicRaffle().catch(err => { console.error('Raffle load failed:', err.message); return null; });
+    const preorderEv = await currentShopEvent().catch(() => null);
+    const preorder = preorderEv && preorderState(preorderEv) ? { title: preorderEv.title, state: preorderState(preorderEv), closes_at: preorderEv.closes_at, opens_at: preorderEv.opens_at, event_date: preorderEv.event_date } : null;
 
     // Only public fields leave the server: planning notes, private files and
     // unapproved supporters are never sent to the website.
@@ -417,6 +535,7 @@ app.get('/api/site', async (req, res) => {
       raised_pence: funds.data.reduce((s, f) => s + f.amount_pence, 0),
       pots: potsOut,
       raffle,
+      preorder,
       ideas: ideas.data.map(i => ({ id: i.id, title: i.title, blurb: i.blurb, cost_pence: i.cost_pence, who: i.who, kind: i.kind || 'fund', created_at: i.created_at, votes: voteMap[i.id] || 0 })).sort((a, b) => b.votes - a.votes),
       events: evs,
       news: news.data,
@@ -778,6 +897,104 @@ calendarRoutes(app, db);
 // ---------------------------------------------------------------------
 app.use('/vendor/supabase', express.static(path.dirname(require.resolve('@supabase/supabase-js/dist/umd/supabase.js')), { maxAge: '7d' }));
 app.use(express.static(path.join(__dirname, 'public'), { extensions: ['html'], maxAge: '5m' }));
+// ---------------------------------------------------------------------
+// Refreshment pre-orders: menu and checkout
+// ---------------------------------------------------------------------
+app.get('/api/refreshments', async (req, res) => {
+  if (needDb(res)) return;
+  try { res.json({ preorder: await publicPreorder(), payments: Boolean(stripe) }); }
+  catch (err) { console.error('Refreshments load failed:', err.message); res.json({ preorder: null, payments: Boolean(stripe) }); }
+});
+
+const REF_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const makeRef = () => 'MM' + Array.from(crypto.randomBytes(4), b => REF_CHARS[b % REF_CHARS.length]).join('');
+app.post('/api/refreshments/checkout', rateLimit(10), async (req, res) => {
+  if (needDb(res)) return;
+  if (!stripe) return res.status(503).json({ error: 'Online payments aren’t set up yet.' });
+  const b = req.body || {};
+  const { data: ev } = await db.from('shop_events').select('*').eq('id', str(b.event_id, 64)).maybeSingle();
+  const state = preorderState(ev);
+  if (state !== 'open') return res.status(400).json({ error: state === 'soon' ? 'Pre-orders haven’t opened yet.' : 'Online pre-orders are now closed. Refreshments will still be available to purchase at our stalls on the evening.' });
+  const name = str(b.name, 100), email = str(b.email, 200).toLowerCase(), row = str(b.row, 4).toUpperCase(), seat = str(b.seat, 8);
+  if (!name) return res.status(400).json({ error: 'Add your name.' });
+  if (!EMAIL_RE.test(email)) return res.status(400).json({ error: 'Add a valid email address for your confirmation.' });
+  if (!row || !seat) return res.status(400).json({ error: 'Add your row and seat number so we can find you.' });
+  const { data: products } = await db.from('shop_products').select('*').eq('event_id', ev.id).eq('active', true);
+  const { data: stock } = await db.from('shop_stock').select('*').eq('event_id', ev.id);
+  const pById = Object.fromEntries((products || []).map(p => [p.id, p])), sById = Object.fromEntries((stock || []).map(x => [x.id, x]));
+  const items = [], lineItems = [], need = {};
+  let alcohol = false;
+  for (const l of Array.isArray(b.lines) ? b.lines.slice(0, 30) : []) {
+    const p = pById[str(l.product_id, 64)], qty = int(l.qty);
+    if (!p) return res.status(400).json({ error: 'Something in your order is no longer on the menu. Please refresh the page.' });
+    if (!(qty >= 1 && qty <= 20)) return res.status(400).json({ error: 'Up to 20 of each item.' });
+    items.push({ kind: 'refreshment', ref_id: p.id, label: p.name, qty, unit_pence: p.price_pence });
+    lineItems.push({ quantity: qty, price_data: { currency: 'gbp', unit_amount: p.price_pence, product_data: { name: p.name, ...(p.description ? { description: p.description } : {}) } } });
+    for (const c of p.components || []) {
+      if (!sById[c.stock_id]) continue;
+      need[c.stock_id] = (need[c.stock_id] || 0) + c.qty * qty;
+      if (sById[c.stock_id].alcohol) alcohol = true;
+    }
+  }
+  if (!items.length) return res.status(400).json({ error: 'Add something to your order first.' });
+  if (alcohol && b.over18 !== true) return res.status(400).json({ error: 'Please confirm you’re 18 or over to order alcohol.' });
+  const donation = int(b.donation_pence);
+  if (Number.isFinite(donation) && donation > 0) {
+    if (donation < 100 || donation > 100000) return res.status(400).json({ error: 'Donations can be from £1 to £1,000.' });
+    items.push({ kind: 'donation', label: 'Donation to Minster More', qty: 1, unit_pence: donation });
+    lineItems.push({ quantity: 1, price_data: { currency: 'gbp', unit_amount: donation, product_data: { name: 'Donation to Minster More', description: 'Thank you for making more possible for Minster students.' } } });
+  }
+  let giftAid = null;
+  if (donation > 0 && b.gift_aid) {
+    const full_name = str(b.gift_aid.full_name, 100), house = str(b.gift_aid.house, 100), postcode = str(b.gift_aid.postcode, 10).toUpperCase();
+    if (!full_name || !house || !postcode) return res.status(400).json({ error: 'For Gift Aid, add your full name, house name or number and postcode.' });
+    giftAid = { full_name, house, postcode };
+  }
+  const total = items.reduce((t, i) => t + i.unit_pence * i.qty, 0);
+  const zone = zoneFor(ev.seating, row, seat);
+  const { data: order, error } = await db.from('orders').insert({
+    items, gift_aid: giftAid, total_pence: total, name, email, preorder_event: ev.id, ref: makeRef(), seat_row: row, seat_number: seat, zone,
+  }).select('*').single();
+  if (error) return res.status(500).json({ error: 'Could not start your order. Please try again.' });
+  const holdErr = (await db.rpc('hold_shop_stock', { p_event: ev.id, p_order: order.id, p_lines: Object.entries(need).map(([stock_id, qty]) => ({ stock_id, qty })) })).data;
+  if (holdErr) { await db.from('orders').delete().eq('id', order.id); return res.status(409).json({ error: holdErr }); }
+  const base = origin(req);
+  try {
+    const params = {
+      mode: 'payment', line_items: lineItems, client_reference_id: order.id, customer_email: email,
+      metadata: { order_id: order.id, preorder_ref: order.ref },
+      expires_at: Math.floor(Date.now() / 1000) + 31 * 60,
+      success_url: `${base}/?paid=1&preorder=${order.ref}&session_id={CHECKOUT_SESSION_ID}#/thanks`,
+      cancel_url: `${base}/#/refreshments`, submit_type: 'pay',
+    };
+    let session;
+    try { session = await stripe.checkout.sessions.create(params); }
+    catch (err) {
+      if (err.type !== 'StripeInvalidRequestError' || !/payment method/i.test(err.message)) throw err;
+      session = await stripe.checkout.sessions.create({ ...params, payment_method_types: ['card'] });
+    }
+    await db.from('orders').update({ stripe_session: session.id }).eq('id', order.id);
+    res.json({ url: session.url });
+  } catch (err) {
+    console.error('Pre-order checkout failed:', err.type, err.message);
+    await db.from('shop_holds').update({ status: 'released' }).eq('order_id', order.id);
+    await db.from('orders').delete().eq('id', order.id);
+    res.status(502).json({ error: 'Could not reach the payment provider. Please try again.' });
+  }
+});
+
+// Admin → Refreshments: what each paid order needs at the seat and from collection
+app.get('/api/admin/refreshments/:id/orders', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const id = str(req.params.id, 64);
+  const [{ data: orders }, { data: products }, { data: stock }] = await Promise.all([
+    db.from('orders').select('id,ref,name,email,seat_row,seat_number,zone,items,total_pence,gift_aid,paid_at,delivered_at,collected_at').eq('preorder_event', id).eq('status', 'paid').order('paid_at'),
+    db.from('shop_products').select('id,components').eq('event_id', id),
+    db.from('shop_stock').select('id,name,delivery').eq('event_id', id),
+  ]);
+  res.json({ orders: (orders || []).map(o => ({ ...o, ...preorderSplit(o.items || [], products || [], stock || []) })) });
+});
+
 // Admin → Raffle → Draw: picks a different ticket at random for each prize
 app.post('/api/admin/raffle-draw', async (req, res) => {
   const who = await requireAdmin(req, res);

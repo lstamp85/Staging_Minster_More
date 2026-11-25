@@ -108,6 +108,18 @@
   .toast.err{background:var(--bad);}
   .winner{font-family:'Archivo',sans-serif;font-size:20px;font-weight:800;}
   .link-btn{color:var(--coral-dark);text-align:left;padding:0;text-decoration:underline;text-underline-offset:2px;}
+  .pre-tabs{margin-top:6px;}
+  .comp-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+  .comp-row input{width:70px;} .comp-row select{flex:1;max-width:280px;}
+  .zin{padding:7px 9px;border-radius:8px;border:1.5px solid var(--hairline);font:inherit;width:100%;}
+  tr.done-row td{opacity:.5;}
+  @media print{
+    .side,.no-print,#toast{display:none!important;}
+    .shell{display:block!important;} #main{padding:0!important;margin:0!important;}
+    .card{box-shadow:none!important;border:1px solid #ccc!important;break-inside:avoid;}
+    .zone-sheet{break-after:page;}
+    body{background:#fff!important;}
+  }
   .stock-check{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;}
   .stock-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:20px;align-items:start;}
   .stock-cat td{vertical-align:middle;}
@@ -285,6 +297,31 @@ const TABLES = {
     ],
     cols:[['', r=>r.logo_url?`<img src="${esc(r.logo_url)}" alt="" style="max-height:36px;max-width:80px;object-fit:contain;">`:''], ['Name', r=>`<b>${esc(r.name)}</b>${r.note?`<br><span class="muted">${esc(r.note)}</span>`:''}`], ['Type', r=>`${KIND_LABEL[r.kind]}${r.tier?` · ${esc(r.tier)}`:''}`], ['', r=>r.approved?'':'<span class="chip coral">Awaiting approval</span>']],
     extra: r=> r.approved ? '' : `<button class="btn btn-ok btn-sm" data-approve-supporter="${r.id}">Approve</button>`,
+  },
+  shop_events: {
+    title:'Pre-order settings', single:'event', order:[['event_date',false]],
+    fields:[
+      {k:'title', label:'Name', type:'text', req:true, full:true, hint:'e.g. Christmas event refreshments'},
+      {k:'event_date', label:'Event date', type:'date', req:true},
+      {k:'max_orders', label:'Maximum pre-orders', type:'number', hint:'Optional. Match what your volunteers can serve in the interval.'},
+      {k:'opens_at', label:'Pre-orders open', type:'datetime'},
+      {k:'closes_at', label:'Pre-orders close', type:'datetime'},
+      {k:'collection_point', label:'Express collection point', type:'text', full:true, hint:'Where to collect mulled wine. Shown on the page and in the confirmation email.'},
+    ],
+    cols:[['Event', r=>`<b>${esc(r.title)}</b>`], ['Date', r=>esc(r.event_date||'')]],
+  },
+  shop_stock: {
+    title:'Pre-order stock item', single:'stock item', order:[['sort',true]],
+    filter: q => (editing && editing!=='new') ? q.eq('id', editing) : q.eq('event_id', (window._shopEv && window._shopEv.id) || '00000000-0000-0000-0000-000000000000'),
+    fields:[
+      {k:'name', label:'Item', type:'text', req:true, hint:'One unit, e.g. Mulled wine or Mince pie. Bundles and single items both use these.'},
+      {k:'available', label:'Available for pre-orders', type:'number', def:0, hint:'Units on offer online. Keep the rest back for the stalls on the night.'},
+      {k:'delivery', label:'How it’s served', type:'select', options:['seat','collect'], labels:{seat:'Delivered to the seat', collect:'Collected from the express point'}, def:'seat'},
+      {k:'alcohol', label:'Contains alcohol (18+ check)', type:'checkbox'},
+      {k:'stock_item_id', label:'Matching item in the Stock cupboard', type:'select', options:[''], labels:{'':'None'}, hint:'Optional. Shows how much is left for the stalls.'},
+      {k:'sort', label:'Order', type:'number'},
+    ],
+    cols:[['Item', r=>`<b>${esc(r.name)}</b>`]],
   },
   stock_items: {
     title:'Stock item', single:'item', order:[['sort',true]],
@@ -794,6 +831,171 @@ async function raffleView(){
     </div>`;
 }
 
+/* ---------------- REFRESHMENT PRE-ORDERS ---------------- */
+const PRE_STATE = {draft:'Draft (not on the website)', open:'Open', paused:'Paused', closed:'Closed'};
+function preState(ev){
+  if(ev.status==='draft') return ['draft','Draft: not on the website'];
+  if(ev.status==='closed' || (ev.closes_at && new Date(ev.closes_at) <= new Date())) return ['closed','Closed'];
+  if(ev.status==='paused') return ['paused','Paused'];
+  if(ev.opens_at && new Date(ev.opens_at) > new Date()) return ['soon','Opens '+d(ev.opens_at,true)];
+  return ['open','Open'];
+}
+function rowSort(a,b){ return (a.seat_row||'').localeCompare(b.seat_row||'') || (parseInt(a.seat_number)||999)-(parseInt(b.seat_number)||999); }
+function bagText(bag){ return Object.entries(bag||{}).map(([n,q])=>`${q} × ${esc(n)}`).join(', '); }
+function addBag(into, bag){ for(const [n,q] of Object.entries(bag||{})) into[n]=(into[n]||0)+q; return into; }
+
+async function refreshView(){
+  const events = await sb.from('shop_events').select('*').order('event_date',{ascending:false}).then(check);
+  if(!events.length) return `<div class="head"><div><h1>Refreshments</h1><p>Let people pre-order interval drinks and snacks, delivered to their seat.</p></div><button class="btn btn-coral" data-shop-new>Set up pre-orders</button></div>`;
+  const ev = events.find(x=>x.id===sub) || events[0];
+  window._shopEv = ev;
+  const tab = window._preTab || 'overview';
+  const [stock, products, holds, cupboard, out] = await Promise.all([
+    sb.from('shop_stock').select('*').eq('event_id',ev.id).order('sort').then(check),
+    sb.from('shop_products').select('*').eq('event_id',ev.id).order('sort').then(check),
+    sb.from('shop_holds').select('stock_id,qty,status,expires_at,order_id').eq('event_id',ev.id).in('status',['held','sold']).then(check),
+    sb.from('stock_items').select('id,product,quantity,category').order('sort').then(x=>x.data||[]),
+    adminFetch(`/api/admin/refreshments/${ev.id}/orders`),
+  ]);
+  const orders = out.orders; window._preOrders = orders; window._shopStock = stock; window._shopProducts = products; window._cupboard = cupboard;
+  const now = Date.now();
+  const sold = {}, held = {};
+  holds.forEach(h=>{ if(h.status==='sold') sold[h.stock_id]=(sold[h.stock_id]||0)+h.qty; else if(new Date(h.expires_at)>now) held[h.stock_id]=(held[h.stock_id]||0)+h.qty; });
+  const refreshRev = orders.reduce((t,o)=>t+(o.items||[]).filter(i=>i.kind==='refreshment').reduce((a,i)=>a+i.unit_pence*i.qty,0),0);
+  const donRev = orders.reduce((t,o)=>t+(o.items||[]).filter(i=>i.kind==='donation').reduce((a,i)=>a+i.unit_pence*i.qty,0),0);
+  const gaCount = orders.filter(o=>o.gift_aid && (o.items||[]).some(i=>i.kind==='donation')).length;
+  const [st, stLabel] = preState(ev);
+  const cupById = Object.fromEntries(cupboard.map(c=>[c.id,c]));
+  const zones = (ev.seating && ev.seating.zones) || [];
+  const tabs = [['overview','Overview'],['delivery','Seat delivery'],['collection','Collection'],['menu','Menu & stock'],['settings','Settings & seating']];
+  const controls = {
+    draft:`<button class="btn btn-coral" data-shop-status="open">Put on the website</button>`,
+    soon:`<button class="btn btn-ghost" data-shop-status="paused">Pause</button><button class="btn btn-ghost" data-shop-status="closed">Close</button>`,
+    open:`<button class="btn btn-ghost" data-shop-status="paused">Pause ordering</button><button class="btn btn-ghost" data-shop-status="closed">Close early</button>`,
+    paused:`<button class="btn btn-coral" data-shop-status="open">Reopen</button><button class="btn btn-ghost" data-shop-status="closed">Close</button>`,
+    closed: ev.closes_at && new Date(ev.closes_at) > new Date() ? `<button class="btn btn-ghost" data-shop-status="open">Reopen</button>` : '',
+  }[st];
+  const zeroStock = stock.filter(x=>x.available===0 && products.some(p=>p.active && (p.components||[]).some(c=>c.stock_id===x.id)));
+
+  let body = '';
+  if(tab==='overview'){
+    const byProduct = {};
+    orders.forEach(o=>(o.items||[]).filter(i=>i.kind==='refreshment').forEach(i=>{ const b = byProduct[i.label] = byProduct[i.label] || {qty:0, rev:0}; b.qty+=i.qty; b.rev+=i.qty*i.unit_pence; }));
+    body = `
+      <div class="stats">
+        <div class="stat"><div class="l">Paid orders</div><div class="n">${orders.length}${ev.max_orders?` <span class="muted" style="font-size:16px;">of ${ev.max_orders}</span>`:''}</div></div>
+        <div class="stat"><div class="l">Refreshments</div><div class="n">${money(refreshRev)}</div></div>
+        <div class="stat"><div class="l">Donations</div><div class="n">${money(donRev)}</div><div class="muted">${gaCount} with Gift Aid</div></div>
+        <div class="stat"><div class="l">Average order</div><div class="n">${orders.length?money(Math.round((refreshRev+donRev)/orders.length)):'—'}</div></div>
+      </div>
+      <div class="card table-wrap"><h2>Stock for pre-orders</h2><p class="muted" style="margin:6px 0 12px;">Bundles use these same items. Type a new number in <b>Online</b> and it saves. Held = in someone’s checkout right now.</p>
+        <table><thead><tr><th>Item</th><th>Served</th><th class="r">Online</th><th class="r">Sold</th><th class="r">Held</th><th class="r">Left online</th><th class="r">In cupboard</th><th class="r">For the stalls</th></tr></thead><tbody>
+        ${stock.map(x=>{ const left = Math.max(0, x.available-(sold[x.id]||0)-(held[x.id]||0)); const cup = x.stock_item_id && cupById[x.stock_item_id]; return `<tr>
+          <td><b>${esc(x.name)}</b>${x.alcohol?' <span class="chip">18+</span>':''}</td><td>${x.delivery==='collect'?'Collect':'To seat'}</td>
+          <td class="r"><input type="number" min="0" class="qin" data-shop-avail="${x.id}" value="${x.available}" aria-label="${esc(x.name)} available online"></td>
+          <td class="r">${sold[x.id]||0}</td><td class="r">${held[x.id]||0}</td><td class="r"><b>${left}</b>${left===0&&x.available>0?' <span class="chip coral">Sold out</span>':''}</td>
+          <td class="r">${cup?cup.quantity:'—'}</td><td class="r">${cup?Math.max(0,cup.quantity-x.available):'—'}</td></tr>`; }).join('')}
+        </tbody></table></div>
+      <div class="card table-wrap"><h2>Sales by item</h2>
+        ${Object.keys(byProduct).length ? `<table style="margin-top:10px;"><thead><tr><th>Product</th><th class="r">Sold</th><th class="r">Revenue</th></tr></thead><tbody>${Object.entries(byProduct).sort((a,b)=>b[1].rev-a[1].rev).map(([n,b])=>`<tr><td>${esc(n)}</td><td class="r">${b.qty}</td><td class="r">${money(b.rev)}</td></tr>`).join('')}</tbody></table>` : `<div class="empty" style="margin-top:10px;">No orders yet.</div>`}
+      </div>`;
+  }
+  if(tab==='delivery'){
+    const zf = window._preZone || 'all';
+    const seatOrders = orders.filter(o=>Object.keys(o.seat||{}).length);
+    const groups = [...zones.map(z=>({key:String(z.zone), label:`Zone ${z.zone} · ${z.label||''}`, list:seatOrders.filter(o=>o.zone===String(z.zone))})), {key:'none', label:'No zone (check the seat)', list:seatOrders.filter(o=>!o.zone)}].filter(g=>g.key!=='none' || g.list.length);
+    const shown = groups.filter(g=>zf==='all' || g.key===zf);
+    body = `
+      <div class="seg no-print">${[['all','All zones'],...groups.map(g=>[g.key, g.key==='none'?'No zone':'Zone '+g.key])].map(([k,l])=>`<button class="${zf===k?'on':''}" data-pre-zone="${k}">${l} ${k==='all'?`<span class="muted">${seatOrders.length}</span>`:`<span class="muted">${(groups.find(g=>g.key===k)||{list:[]}).list.length}</span>`}</button>`).join('')}</div>
+      <div class="actions no-print" style="margin:0 0 14px;"><button class="btn btn-ghost btn-sm" onclick="window.print()">Print delivery sheets</button></div>
+      ${shown.map(g=>{ const pick = g.list.reduce((a,o)=>addBag(a,o.seat),{}); return `
+        <div class="card table-wrap zone-sheet">
+          <div class="raffle-head"><h2>${esc(g.label)}</h2><span class="muted">${g.list.length} order${g.list.length===1?'':'s'} · ${g.list.filter(o=>o.delivered_at).length} delivered</span></div>
+          ${g.list.length ? `<p style="margin:8px 0 12px;"><b>To pack:</b> ${bagText(pick)}</p>
+          <table><thead><tr><th>Seat</th><th>Name</th><th>Bring</th><th>Ref</th><th class="no-print">Delivered</th></tr></thead><tbody>
+          ${g.list.slice().sort(rowSort).map(o=>`<tr class="${o.delivered_at?'done-row':''}"><td><b>${esc(o.seat_row)}${esc(o.seat_number)}</b></td><td>${esc(o.name||'')}</td><td>${bagText(o.seat)}${Object.keys(o.collect||{}).length?`<br><span class="muted">Also collecting: ${bagText(o.collect)}</span>`:''}</td><td class="muted">${esc(o.ref||'')}</td><td class="no-print"><input type="checkbox" data-pre-delivered="${o.id}" ${o.delivered_at?'checked':''} aria-label="Delivered to ${esc(o.seat_row)}${esc(o.seat_number)}"></td></tr>`).join('')}
+          </tbody></table>` : `<div class="empty">No seat deliveries in this zone yet.</div>`}
+        </div>`; }).join('')}`;
+  }
+  if(tab==='collection'){
+    const q = (window._preSearch||'').toLowerCase();
+    const col = orders.filter(o=>Object.keys(o.collect||{}).length).filter(o=>!q || (o.ref||'').toLowerCase().includes(q) || (o.name||'').toLowerCase().includes(q));
+    const all = orders.filter(o=>Object.keys(o.collect||{}).length);
+    const totalBag = all.reduce((a,o)=>addBag(a,o.collect),{});
+    body = `
+      <div class="stats"><div class="stat"><div class="l">To prepare</div><div class="n" style="font-size:22px;">${bagText(totalBag)||'Nothing yet'}</div></div><div class="stat"><div class="l">Collected</div><div class="n">${all.filter(o=>o.collected_at).length} of ${all.length}</div></div></div>
+      <div class="card table-wrap">
+        <div class="raffle-head no-print" style="margin-bottom:12px;"><input id="preSearch" placeholder="Search reference or name" value="${esc(window._preSearch||'')}" style="max-width:320px;padding:9px 12px;border-radius:10px;border:1.5px solid var(--hairline);font:inherit;"><button class="btn btn-ghost btn-sm" onclick="window.print()">Print list</button></div>
+        ${col.length ? `<table><thead><tr><th>Ref</th><th>Name</th><th>Collect</th><th>Seat</th><th class="no-print">Collected</th></tr></thead><tbody>
+        ${col.slice().sort((a,b)=>(a.ref||'').localeCompare(b.ref||'')).map(o=>`<tr class="${o.collected_at?'done-row':''}"><td><b>${esc(o.ref||'')}</b></td><td>${esc(o.name||'')}</td><td>${bagText(o.collect)}</td><td class="muted">${esc(o.seat_row||'')}${esc(o.seat_number||'')}</td><td class="no-print"><input type="checkbox" data-pre-collected="${o.id}" ${o.collected_at?'checked':''} aria-label="Collected ${esc(o.ref)}"></td></tr>`).join('')}
+        </tbody></table>` : `<div class="empty">${q?'No match.':'No collection orders yet.'}</div>`}
+      </div>`;
+  }
+  if(tab==='menu'){
+    const sById = Object.fromEntries(stock.map(x=>[x.id,x]));
+    const pe = window._preProductEdit;
+    const editor = pe ? (()=>{ const p = pe==='new' ? {name:'', description:'', kind:'single', price_pence:0, active:true, components:[], sort:(products.reduce((m,x)=>Math.max(m,x.sort||0),0)+1)} : products.find(x=>x.id===pe); if(!p) return ''; const comps = (window._preComps = window._preComps || (p.components||[]).map(c=>({...c}))); return `
+      <div class="card"><h2>${pe==='new'?'Add a product':'Edit '+esc(p.name)}</h2>
+        <div class="form" style="margin-top:12px;">
+          <div class="f"><label for="pp-name">Name</label><input id="pp-name" value="${esc(p.name)}"></div>
+          <div class="f"><label for="pp-price">Price</label><div class="money"><span>£</span><input id="pp-price" inputmode="decimal" value="${p.price_pence/100}"></div></div>
+          <div class="f full"><label for="pp-desc">Description <span class="muted">(optional)</span></label><input id="pp-desc" value="${esc(p.description||'')}" placeholder="e.g. Mulled wine and mince pie"></div>
+          <div class="f"><label for="pp-kind">Type</label><select id="pp-kind"><option value="single" ${p.kind!=='bundle'?'selected':''}>Single item</option><option value="bundle" ${p.kind==='bundle'?'selected':''}>Bundle</option></select></div>
+          <div class="f"><label for="pp-sort">Order</label><input id="pp-sort" type="number" value="${p.sort||0}"></div>
+          <div class="f full"><label class="check"><input type="checkbox" id="pp-active" ${p.active?'checked':''}> On sale</label></div>
+          <div class="f full"><label>What’s in it (uses this stock)</label>
+            ${comps.map((c,i)=>`<div class="comp-row"><input type="number" min="1" value="${c.qty}" data-comp-qty="${i}" aria-label="Quantity"> × <select data-comp-stock="${i}">${stock.map(x=>`<option value="${x.id}" ${x.id===c.stock_id?'selected':''}>${esc(x.name)}</option>`).join('')}</select><button class="btn-danger" data-comp-del="${i}">Remove</button></div>`).join('')}
+            <button class="link-btn" data-comp-add>+ Add an item</button></div>
+        </div>
+        <div class="actions" style="margin-top:14px;"><button class="btn btn-coral" data-pp-save>Save</button><button class="btn btn-ghost" data-pp-cancel>Cancel</button></div>
+      </div>`; })() : '';
+    body = editor + `
+      <div class="card table-wrap"><div class="raffle-head"><h2>Menu</h2><button class="btn btn-coral btn-sm" data-pp-edit="new">Add product</button></div>
+        <table style="margin-top:10px;"><thead><tr><th>Product</th><th>Contents</th><th class="r">Price</th><th>On sale</th><th></th></tr></thead><tbody>
+        ${products.map(p=>`<tr><td><b>${esc(p.name)}</b><br><span class="muted">${p.kind==='bundle'?'Bundle':'Single'}</span></td><td>${(p.components||[]).map(c=>`${c.qty} × ${esc((sById[c.stock_id]||{}).name||'?')}`).join(', ')}</td><td class="r">${money(p.price_pence)}</td>
+          <td><input type="checkbox" data-pp-active="${p.id}" ${p.active?'checked':''} aria-label="${esc(p.name)} on sale"></td>
+          <td><div class="actions"><button class="btn btn-ghost btn-sm" data-pp-edit="${p.id}">Edit</button><button class="btn-danger" data-del="shop_products:${p.id}">Delete</button></div></td></tr>`).join('')}
+        </tbody></table></div>
+      <div class="card table-wrap"><div class="raffle-head"><h2>Stock items</h2><button class="btn btn-ghost btn-sm" data-ss-new>Add stock item</button></div>
+        <p class="muted" style="margin:6px 0 10px;">Each product is made of these. Set how each is served and how many are offered online on the Overview tab.</p>
+        <table><thead><tr><th>Item</th><th>Served</th><th>18+</th><th>Cupboard item</th><th></th></tr></thead><tbody>
+        ${stock.map(x=>`<tr><td><b>${esc(x.name)}</b></td><td>${x.delivery==='collect'?'Collect':'To seat'}</td><td>${x.alcohol?'Yes':''}</td><td class="muted">${esc((cupById[x.stock_item_id]||{}).product||'—')}</td><td><div class="actions"><button class="btn btn-ghost btn-sm" data-ss-edit="${x.id}">Edit</button><button class="btn-danger" data-del="shop_stock:${x.id}">Delete</button></div></td></tr>`).join('')}
+        </tbody></table></div>`;
+  }
+  if(tab==='settings'){
+    const seat = ev.seating || {};
+    body = `
+      <div class="card"><div class="raffle-head"><h2>Dates and limits</h2><button class="btn btn-ghost btn-sm" data-shop-edit="${ev.id}">Edit</button></div>
+        <table style="margin-top:10px;"><tbody>
+          <tr><td>Event</td><td><b>${esc(ev.title)}</b>, ${esc(ev.event_date||'')}</td></tr>
+          <tr><td>Pre-orders open</td><td>${ev.opens_at?d(ev.opens_at,true):'As soon as you put it on the website'}</td></tr>
+          <tr><td>Pre-orders close</td><td>${ev.closes_at?d(ev.closes_at,true):'When you close them'}</td></tr>
+          <tr><td>Maximum orders</td><td>${ev.max_orders||'No limit'}</td></tr>
+          <tr><td>Collection point</td><td>${esc(ev.collection_point||'—')}</td></tr>
+        </tbody></table></div>
+      <div class="card"><h2>Seating and zones</h2>
+        <p class="muted" style="margin:6px 0 14px;">Orders are put in a zone from their row and seat. Any seat is accepted; one that doesn’t fit a zone shows under “No zone” so you can check it.</p>
+        <div class="form">
+          <div class="f"><label for="seat-rows">Rows people can choose</label><input id="seat-rows" value="${esc(seat.rows||'A-Z')}"><div class="hint">e.g. A-Z, or A-H,J-W to skip I</div></div>
+          <div class="f"><label for="seat-acc">Accessible spaces note</label><input id="seat-acc" value="${esc(seat.accessible||'')}"><div class="hint">Shown under the seat box</div></div>
+        </div>
+        <table style="margin-top:14px;"><thead><tr><th>Zone</th><th>Name</th><th>Rows</th><th>Seats</th><th></th></tr></thead><tbody>
+        ${(seat.zones||[]).map((z,i)=>`<tr><td><input class="zin" data-z="${i}.zone" value="${esc(z.zone)}" style="width:60px"></td><td><input class="zin" data-z="${i}.label" value="${esc(z.label||'')}"></td><td><input class="zin" data-z="${i}.rows" value="${esc(z.rows||'')}" style="width:100px"></td><td><input class="zin" data-z="${i}.seats" value="${esc(z.seats||'')}" style="width:100px"></td><td><button class="btn-danger" data-z-del="${i}">Remove</button></td></tr>`).join('')}
+        </tbody></table>
+        <div class="actions" style="margin-top:12px;"><button class="link-btn" data-z-add>+ Add a zone</button><button class="btn btn-coral btn-sm" data-seat-save>Save seating</button></div>
+      </div>`;
+  }
+  return `
+    <div class="head no-print"><div><h1>Refreshments</h1><p>Interval pre-orders: seat delivery and express collection.</p></div>
+      <div class="actions"><button class="btn btn-ghost" id="preExport">Export orders</button><a class="btn btn-ghost" href="/#/refreshments" target="_blank">View page ↗</a></div></div>
+    ${events.length>1?`<div class="seg no-print">${events.map(x=>`<button class="${x.id===ev.id?'on':''}" data-sub="${x.id}">${esc(x.title)}</button>`).join('')}</div>`:''}
+    <div class="card no-print"><div class="raffle-head"><div><h2>${esc(ev.title)}</h2><p class="muted" style="margin:6px 0 0;">${ev.event_date?esc(new Date(ev.event_date+'T12:00:00Z').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})):''} · ordering ${ev.opens_at?d(ev.opens_at,true):'now'} to ${ev.closes_at?d(ev.closes_at,true):'when closed'}</p></div>
+      <span class="chip ${st==='open'?'ok':st==='draft'?'':'coral'}">${esc(stLabel)}</span></div>
+      <div class="actions" style="margin-top:14px;">${controls}</div></div>
+    ${zeroStock.length && st!=='closed' ? `<div class="notice no-print"><b>Set online stock</b> for ${zeroStock.map(x=>esc(x.name)).join(', ')} on the Overview tab. Until then anything using them shows as sold out.</div>` : ''}
+    <div class="seg pre-tabs no-print">${tabs.map(([k,l])=>`<button class="${tab===k?'on':''}" data-pre-tab="${k}">${l}</button>`).join('')}</div>
+    ${body}`;
+}
 /* ---------------- STOCK ---------------- */
 const SHOP_ACTIONS = ['Purchase','Check','Collect','Return'];
 const isLow = i => i.low_at != null && i.quantity <= i.low_at;
@@ -860,6 +1062,23 @@ async function stockView(){
       </div>
     </div>`;
 }
+function prepShopStockForm(){
+  const f = TABLES.shop_stock.fields.find(x=>x.k==='stock_item_id');
+  f.options = ['', ...(window._cupboard||[]).map(c=>c.id)];
+  f.labels = {'':'None', ...Object.fromEntries((window._cupboard||[]).map(c=>[c.id, `${c.product} (${c.quantity} in stock)`]))};
+}
+document.addEventListener('change', async e=>{
+  const t = e.target; if(!t.dataset) return;
+  if(t.dataset.shopAvail){ const v = Math.max(0, Math.round(Number(t.value)||0)); const {error} = await sb.from('shop_stock').update({available:v}).eq('id',t.dataset.shopAvail); if(error) return toast(error.message,true); toast('Saved.'); render(); return; }
+  if(t.dataset.preDelivered){ check(await sb.from('orders').update({delivered_at: t.checked?new Date().toISOString():null}).eq('id',t.dataset.preDelivered)); const o=(window._preOrders||[]).find(x=>x.id===t.dataset.preDelivered); if(o) o.delivered_at = t.checked?1:null; t.closest('tr')?.classList.toggle('done-row', t.checked); return; }
+  if(t.dataset.preCollected){ check(await sb.from('orders').update({collected_at: t.checked?new Date().toISOString():null}).eq('id',t.dataset.preCollected)); t.closest('tr')?.classList.toggle('done-row', t.checked); return; }
+  if(t.dataset.ppActive){ check(await sb.from('shop_products').update({active:t.checked}).eq('id',t.dataset.ppActive)); toast(t.checked?'On sale.':'Taken off sale.'); return; }
+  if(t.dataset.compQty!==undefined){ window._preComps[Number(t.dataset.compQty)].qty = Math.max(1, Number(t.value)||1); return; }
+  if(t.dataset.compStock!==undefined){ window._preComps[Number(t.dataset.compStock)].stock_id = t.value; return; }
+  if(t.dataset.z){ const [i,k] = t.dataset.z.split('.'); window._shopEv.seating.zones[Number(i)][k] = t.value.trim(); return; }
+});
+document.addEventListener('input', e=>{ if(e.target.id==='preSearch'){ window._preSearch = e.target.value; clearTimeout(window._psT); window._psT = setTimeout(async ()=>{ await render(); const el=$('#preSearch'); if(el){ el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }, 250); } });
+
 function stockTotalsRefresh(){
   const items = window._stock || [];
   const el = $('#stockTotal'); if(el) el.textContent = items.reduce((t,i)=>t+i.quantity,0);
@@ -944,7 +1163,7 @@ async function adminsView(){
 /* ---------------- SHELL ---------------- */
 const NAV = [
   ['dashboard','Totaliser'], ['ideas','Suggestions'], ['pots','Funding priorities'], ['events','Events'], ['planning','Event planning'], ['rota','Volunteer rota'],
-  ['payments','Payments'], ['raffle','Raffle'], ['fifty','50:50 Club'], ['giftaid','Gift Aid'], ['stock','Stock'],
+  ['payments','Payments'], ['raffle','Raffle'], ['fifty','50:50 Club'], ['giftaid','Gift Aid'], ['refreshments','Refreshments'], ['stock','Stock'],
   ['documents','Documents'], ['privatedocs','Committee files'], ['news','News'], ['committee','Committee'], ['supporters','Supporters wall'],
   ['inbox','Volunteers'], ['settings','Settings'], ['admins','Admins'],
 ];
@@ -986,6 +1205,7 @@ async function render(){
     else if(view==='fifty') html = await fiftyView();
     else if(view==='raffle') html = await raffleView();
     else if(view==='stock') html = await stockView();
+    else if(view==='refreshments') html = await refreshView();
     else if(view==='giftaid') html = await giftAidView();
     else if(view==='settings') html = await settingsView();
     else if(view==='admins') html = await adminsView();
@@ -994,7 +1214,7 @@ async function render(){
   }catch(e){
     const needsUpdate = /column .* does not exist|could not find .* column|could not find the table|relation .* does not exist/i.test(e.message||'');
     $('#main').innerHTML = needsUpdate
-      ? `<div class="notice"><b>Database update needed.</b> In Supabase, open SQL Editor → New query, paste any files from <code>supabase/migrations/</code> on GitHub you haven't run yet (the newest is <code>2026-11-25-stock.sql</code>) and click Run. Then refresh this page.</div>`
+      ? `<div class="notice"><b>Database update needed.</b> In Supabase, open SQL Editor → New query, paste any files from <code>supabase/migrations/</code> on GitHub you haven't run yet (the newest is <code>2026-11-25-refreshments.sql</code>) and click Run. Then refresh this page.</div>`
       : `<div class="empty">Couldn't load this page: ${esc(e.message||e)}</div>`;
   }
 }
@@ -1128,6 +1348,47 @@ document.addEventListener('click', async e=>{
     if(t.id==='copyCal'){ const el=$('#calUrl'); el.select(); try{ await navigator.clipboard.writeText(el.value); toast('Calendar link copied.'); }catch(e){ document.execCommand('copy'); toast('Calendar link copied.'); } return; }
     if(t.hasAttribute('data-plan-new')){ window._returnTo='planning'; view='events'; sub=null; editing='new'; await render(); window.scrollTo(0,0); return; }
     if(t.dataset.planEdit){ window._returnTo='planning'; view='events'; sub=null; editing=t.dataset.planEdit; await render(); window.scrollTo(0,0); return; }
+    if(t.dataset.preTab){ window._preTab = t.dataset.preTab; window._preProductEdit = null; window._preComps = null; render(); return; }
+    if(t.dataset.preZone){ window._preZone = t.dataset.preZone; render(); return; }
+    if(t.hasAttribute('data-shop-new')){ window._returnTo='refreshments'; view='shop_events'; sub=null; editing='new'; await render(); return; }
+    if(t.dataset.shopEdit){ window._returnTo='refreshments'; view='shop_events'; sub=null; editing=t.dataset.shopEdit; await render(); window.scrollTo(0,0); return; }
+    if(t.dataset.shopStatus){
+      const ev = window._shopEv, to = t.dataset.shopStatus;
+      const msg = {open:`Open pre-orders for “${ev.title}”? The page will appear on the website.`, paused:'Pause ordering? People will see that pre-orders are paused.', closed:'Close pre-orders now? People will see the “now closed” message.'}[to];
+      if(!confirm(msg)) return;
+      check(await sb.from('shop_events').update({status:to}).eq('id',ev.id));
+      toast({open:'Pre-orders are on the website.', paused:'Ordering paused.', closed:'Pre-orders closed.'}[to]); render(); return;
+    }
+    if(t.hasAttribute('data-ss-new')){ prepShopStockForm(); TABLES.shop_stock.fixed = {event_id: window._shopEv.id}; window._returnTo='refreshments'; view='shop_stock'; sub=null; editing='new'; await render(); window.scrollTo(0,0); return; }
+    if(t.dataset.ssEdit){ prepShopStockForm(); TABLES.shop_stock.fixed = {}; window._returnTo='refreshments'; view='shop_stock'; sub=null; editing=t.dataset.ssEdit; await render(); window.scrollTo(0,0); return; }
+    if(t.dataset.ppEdit){ window._preProductEdit = t.dataset.ppEdit; window._preComps = null; await render(); window.scrollTo(0,0); return; }
+    if(t.hasAttribute('data-pp-cancel')){ window._preProductEdit = null; window._preComps = null; render(); return; }
+    if(t.hasAttribute('data-comp-add')){ (window._preComps = window._preComps||[]).push({stock_id:(window._shopStock[0]||{}).id, qty:1}); render(); return; }
+    if(t.dataset.compDel!==undefined){ window._preComps.splice(Number(t.dataset.compDel),1); render(); return; }
+    if(t.hasAttribute('data-pp-save')){
+      const name = $('#pp-name').value.trim(), price = Math.round(parseFloat($('#pp-price').value)*100);
+      if(!name) return toast('Give the product a name.', true);
+      if(!Number.isFinite(price) || price<0) return toast('Enter a price.', true);
+      const comps = (window._preComps||[]).filter(c=>c.stock_id && c.qty>0);
+      if(!comps.length) return toast('Add at least one stock item it uses.', true);
+      const row = {name, price_pence:price, description:$('#pp-desc').value.trim()||null, kind:$('#pp-kind').value, sort:Number($('#pp-sort').value)||0, active:$('#pp-active').checked, components:comps};
+      if(window._preProductEdit==='new') check(await sb.from('shop_products').insert({...row, event_id:window._shopEv.id}));
+      else check(await sb.from('shop_products').update(row).eq('id', window._preProductEdit));
+      window._preProductEdit = null; window._preComps = null; toast('Saved.'); render(); return;
+    }
+    if(t.hasAttribute('data-z-add')){ const ev=window._shopEv; ev.seating = ev.seating||{}; (ev.seating.zones = ev.seating.zones||[]).push({zone:String(ev.seating.zones.length+1), label:'', rows:'', seats:''}); window._seatDirty = ev.seating; render(); return; }
+    if(t.dataset.zDel!==undefined){ window._shopEv.seating.zones.splice(Number(t.dataset.zDel),1); window._seatDirty = window._shopEv.seating; render(); return; }
+    if(t.hasAttribute('data-seat-save')){
+      const seating = {...(window._shopEv.seating||{}), rows:$('#seat-rows').value.trim()||'A-Z', accessible:$('#seat-acc').value.trim()||null, zones:(window._shopEv.seating.zones||[]).filter(z=>z.zone)};
+      check(await sb.from('shop_events').update({seating}).eq('id', window._shopEv.id)); window._seatDirty = null; toast('Seating saved. New orders use it straight away.'); render(); return;
+    }
+    if(t.id==='preExport'){
+      const os = window._preOrders||[];
+      csv([['Ref','Name','Email','Row','Seat','Zone','Seat delivery','Collect','Refreshments £','Donation £','Gift Aid','Paid','Delivered','Collected'],
+        ...os.map(o=>{ const r=(o.items||[]).filter(i=>i.kind==='refreshment').reduce((a,i)=>a+i.unit_pence*i.qty,0), dn=(o.items||[]).filter(i=>i.kind==='donation').reduce((a,i)=>a+i.unit_pence*i.qty,0);
+          return [o.ref,o.name,o.email,o.seat_row,o.seat_number,o.zone||'',Object.entries(o.seat||{}).map(([n,q])=>q+' x '+n).join('; '),Object.entries(o.collect||{}).map(([n,q])=>q+' x '+n).join('; '),(r/100).toFixed(2),(dn/100).toFixed(2),o.gift_aid&&dn?'Yes':'',o.paid_at,o.delivered_at?'Yes':'',o.collected_at?'Yes':'']; })],
+        `${safeName(window._shopEv.title)}-orders.csv`); return;
+    }
     if(t.hasAttribute('data-stock-new')){ window._stockCat = t.dataset.stockNew||''; window._returnTo='stock'; view='stock_items'; sub=null; editing='new'; await render(); window.scrollTo(0,0); return; }
     if(t.dataset.stockEdit){ window._returnTo='stock'; view='stock_items'; sub=null; editing=t.dataset.stockEdit; await render(); window.scrollTo(0,0); return; }
     if(t.dataset.qty){ const [id,delta] = t.dataset.qty.split(':'); const it=(window._stock||[]).find(i=>i.id===id); if(it) saveQty(id, it.quantity + Number(delta)); return; }

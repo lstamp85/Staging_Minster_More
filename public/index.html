@@ -171,6 +171,55 @@
   .note{font-size:13.5px;color:var(--ink-soft);line-height:1.55;}
 
 
+
+  /* REFRESHMENTS */
+  .pre-points{list-style:none;margin:20px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:8px;}
+  .pre-points li{background:var(--card);border:1px solid var(--hairline);border-radius:999px;padding:8px 14px;font-size:14px;font-weight:600;}
+  .pre-deadline{margin:18px 0 0;font-size:16px;}
+  .pre-banner{margin:18px 0 0;background:var(--coral);color:var(--ink);border-radius:16px;padding:14px 18px;font-weight:600;max-width:760px;line-height:1.5;}
+  .pre-h2{font-size:26px;margin:28px 0 14px;}
+  .pre-bundles{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;}
+  .pre-bundle{background:var(--card);border:1px solid var(--hairline);border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:8px;}
+  .pre-bundle-top{display:flex;justify-content:space-between;gap:12px;align-items:baseline;}
+  .pre-bundle h3{font-family:'Archivo',sans-serif;font-size:20px;margin:0;}
+  .pre-bundle p{margin:0;font-size:14.5px;line-height:1.5;color:var(--ink-mid);}
+  .pre-bundle-foot{margin-top:auto;padding-top:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;}
+  .pre-price{font-family:'Archivo',sans-serif;font-weight:800;font-size:20px;white-space:nowrap;}
+  .pre-tags{display:block;font-size:12.5px;color:var(--ink-soft);font-weight:600;}
+  .pre-singles{background:var(--card);border:1px solid var(--hairline);border-radius:20px;padding:6px 18px;}
+  .pre-single{display:grid;grid-template-columns:1fr auto auto;gap:14px;align-items:center;padding:12px 0;border-bottom:1px solid var(--hairline);min-height:64px;}
+  .pre-single:last-child{border-bottom:none;}
+  .pre-single .pre-price{font-size:17px;}
+  .out{opacity:.55;}
+  .pre-add{padding:9px 18px;font-size:14px;}
+  .pre-stepper{gap:8px;}
+  .pre-stepper button{width:36px;height:36px;}
+  .pre-stepper button:disabled{opacity:.35;}
+  .pre-panel input,.pre-panel select{width:100%;}
+  .pre-lines{display:grid;gap:8px;margin-bottom:6px;}
+  .pre-line{display:flex;justify-content:space-between;gap:10px;font-size:15px;}
+  .pre-empty{font-size:15px;opacity:.8;margin:0 0 6px;}
+  .pre-block{border-top:1px solid rgba(255,255,255,.18);margin-top:16px;padding-top:16px;}
+  .pre-block-title{font-family:'Archivo',sans-serif;font-weight:700;font-size:17px;margin-bottom:6px;}
+  .pre-small{font-size:13.5px;line-height:1.5;opacity:.85;margin:0 0 10px;}
+  .pre-amounts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0;}
+  .pre-amounts button{border:1.5px solid rgba(255,255,255,.35);border-radius:12px;padding:10px 0;font-weight:700;font-size:15px;color:var(--paper);}
+  .pre-amounts button.on{background:var(--coral);border-color:var(--coral);color:var(--ink);}
+  .pre-other{margin-bottom:10px;}
+  .pre-seat{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .pre-how{margin-top:14px;background:rgba(255,255,255,.08);border-radius:14px;padding:12px 14px;font-size:14px;line-height:1.5;}
+  .pre-how p{margin:0;} .pre-how p + p{margin-top:8px;}
+  .pre-totals{margin:16px 0;display:grid;gap:6px;font-size:15px;}
+  .pre-totals div{display:flex;justify-content:space-between;}
+  .pre-totals .grand{font-family:'Archivo',sans-serif;font-weight:800;font-size:20px;border-top:1px solid rgba(255,255,255,.25);padding-top:10px;margin-top:4px;}
+  .pre-bar{display:none;}
+  @media (max-width:860px){
+    .pre-bar{display:block;position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--coral);color:var(--ink);font-weight:800;text-align:center;text-decoration:none;padding:16px max(16px, env(safe-area-inset-left,0px)) calc(16px + env(safe-area-inset-bottom,0px));box-shadow:0 -6px 20px rgba(0,0,0,.15);}
+    .pre-layout{padding-bottom:70px;}
+    .pre-single{gap:10px;}
+    .pre-singles{padding:4px 14px;}
+    .pre-stepper{gap:4px;} .pre-stepper .count{min-width:22px;text-align:center;}
+  }
   /* RAFFLE */
   .raffle-band{display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap;background:var(--ink);color:var(--paper);border-radius:28px;padding:32px 40px;text-decoration:none;margin-bottom:8px;}
   .raffle-band .eyebrow{color:var(--cyan);}
@@ -541,11 +590,12 @@ const NAV = [
   {key:'money',   label:'Where the money goes'},
   {key:'suggest', label:'Suggest & vote'},
   {key:'events',  label:'Events'},
+  {key:'refreshments', label:'Refreshments', when:()=>data && data.preorder},
   {key:'raffle',  label:'Raffle', when:()=>data && data.raffle},
   {key:'wall',    label:'Supporters'},
   {key:'about',   label:'About'},
 ];
-const PAGES = ['home','give','money','suggest','events','raffle','wall','about','privacy','thanks'];
+const PAGES = ['home','give','money','suggest','events','refreshments','raffle','wall','about','privacy','thanks'];
 const EMAIL = {
   hello:'hello@minstermore.org.uk', events:'events@minstermore.org.uk',
   finance:'finance@minstermore.org.uk', team:'team@minstermore.org.uk',
@@ -574,6 +624,9 @@ let volunteerSent = false;
 let donation = {amount:2500, other:'', giftAid:false, ga:{full_name:'', house:'', postcode:''}};
 let basketForm = {giftAid:false, ga:{full_name:'', house:'', postcode:''}, wall_name:'', over18:false, raffleAge:false};
 let raffleQty = 5;
+let pre = null, preLoading = false, preCart = load('mm_preorder_cart', {}), preError = '';
+let preForm = Object.assign({name:'', email:'', row:'', seat:'', over18:false, donation:null, other:'', giftAid:false, ga:{full_name:'', house:'', postcode:''}}, load('mm_preorder_form', {}), {over18:false});
+function savePre(){ save('mm_preorder_cart', preCart); const {over18, ...keep} = preForm; save('mm_preorder_form', keep); }
 let offerForm = {business:'', contact_name:'', email:'', phone:'', website:'', prize:'', description:'', value:''}, offerSent = false, offerLogo = null;
 let modal = null; // {type:'donate'|'basket'|'reserve'|'help', ...}
 let helpForm = null;
@@ -772,6 +825,7 @@ function pageHome(){
       <div>${targetCard()}</div>
     </div>
 
+    ${preorderBand()}
     ${raffleBand()}
     <section class="wrap">${pvmCards(true)}</section>
 
@@ -1123,6 +1177,153 @@ async function submitOffer(btn){
   }catch(e){ busy = false; render(); toast(e.message); }
 }
 
+/* ---------------- REFRESHMENT PRE-ORDERS ---------------- */
+async function loadPreorder(){
+  if(preLoading) return; preLoading = true;
+  try{ const r = await fetch('/api/refreshments'); const j = await r.json(); pre = j.preorder; pre && (pre.payments = j.payments); }
+  catch(e){ preError = 'The menu couldn’t load. Please refresh the page.'; }
+  preLoading = false;
+  if(pre){ for(const id of Object.keys(preCart)){ const p = pre.products.find(x=>x.id===id); if(!p || p.sold_out) delete preCart[id]; else preCart[id] = Math.min(preCart[id], p.max); } savePre(); }
+  if(page==='refreshments') render();
+}
+function preLines(){ return pre ? pre.products.filter(p=>preCart[p.id]>0).map(p=>({p, qty:preCart[p.id]})) : []; }
+function preDonation(){ if(preForm.donation==='other'){ const v = Math.round(parseFloat(preForm.other)*100); return Number.isFinite(v) && v>=100 ? v : 0; } return preForm.donation || 0; }
+function preSubtotal(){ return preLines().reduce((t,l)=>t+l.p.price_pence*l.qty,0); }
+function fmtDay(iso){ return new Date(iso).toLocaleString('en-GB',{weekday:'long', day:'numeric', month:'long', timeZone:'Europe/London'}); }
+function fmtDayTime(iso){ return new Date(iso).toLocaleString('en-GB',{weekday:'long', day:'numeric', month:'long', hour:'numeric', minute:'2-digit', timeZone:'Europe/London'}).replace(':00',''); }
+
+function preorderBand(){
+  const p = data.preorder;
+  if(!p || !['open','soon'].includes(p.state)) return '';
+  return `
+    <section class="wrap">
+      <a class="raffle-band pre-band" href="#/refreshments">
+        <div>
+          <div class="eyebrow">${p.state==='open' ? `Pre-orders close ${esc(fmtDayTime(p.closes_at))}` : `Pre-orders open ${esc(fmtDay(p.opens_at))}`}</div>
+          <h2>Skip the queues this Christmas</h2>
+          <p>Pre-order interval drinks and festive treats, brought to your seat.</p>
+        </div>
+        <div class="raffle-band-side"><span class="btn btn-ink btn-big">Pre-order refreshments</span></div>
+      </a>
+    </section>`;
+}
+
+function preQty(p){
+  const q = preCart[p.id]||0;
+  if(p.sold_out) return `<span class="chip chip-line">Sold out</span>`;
+  if(!q) return `<button class="btn btn-ink pre-add" data-pre-add="${p.id}" ${pre.state!=='open'?'disabled':''}>Add</button>`;
+  return `<div class="stepper pre-stepper"><button data-pre-qty="${p.id}:-1" aria-label="One fewer ${esc(p.name)}">−</button><span class="count">${q}</span><button data-pre-qty="${p.id}:1" aria-label="One more ${esc(p.name)}" ${q>=p.max?'disabled':''}>+</button></div>`;
+}
+
+function preBasket(){
+  const lines = preLines(), sub = preSubtotal(), don = preDonation(), alcohol = lines.some(l=>l.p.alcohol);
+  const collect = lines.some(l=>l.p.delivery.includes('collect')), seat = lines.some(l=>l.p.delivery.includes('seat'));
+  if(pre.state!=='open') return '';
+  if(!pre.payments) return `<div class="form-panel"><h3>Online ordering opens shortly</h3></div>`;
+  return `
+    <div class="form-panel pre-panel" id="preOrder">
+      <h3>Your order</h3>
+      ${lines.length ? `<div class="pre-lines">${lines.map(l=>`<div class="pre-line"><span>${l.qty} × ${esc(l.p.name)}</span><span>${money(l.p.price_pence*l.qty)}</span></div>`).join('')}</div>`
+        : `<p class="pre-empty">Add drinks and treats from the menu to start your order.</p>`}
+      ${lines.length ? `
+      <div class="pre-block">
+        <div class="pre-block-title">Help make more possible for Minster students</div>
+        <p class="pre-small">Would you like to add a small donation to your order? Every extra pound helps Minster More fund resources, experiences and opportunities for students at The Minster School.</p>
+        <div class="pre-amounts" role="group" aria-label="Optional donation">
+          ${[100,200,500,1000].map(v=>`<button class="${preForm.donation===v?'on':''}" data-pre-don="${v}" aria-pressed="${preForm.donation===v}">${money(v)}</button>`).join('')}
+          <button class="${preForm.donation==='other'?'on':''}" data-pre-don="other" aria-pressed="${preForm.donation==='other'}">Other</button>
+          <button class="${preForm.donation===0?'on':''}" data-pre-don="0" aria-pressed="${preForm.donation===0}">No thanks</button>
+        </div>
+        ${preForm.donation==='other' ? `<div class="field-cost pre-other"><span>£</span><input id="pre-other" type="number" min="1" step="1" inputmode="decimal" placeholder="Amount" value="${esc(preForm.other)}" aria-label="Donation amount"></div>` : ''}
+        ${don>0 ? giftAidBlock(preForm, don, 'pre') : ''}
+      </div>
+      <div class="pre-block">
+        <div class="pre-block-title">Your details</div>
+        <div class="field"><label for="pre-name">Name</label><input id="pre-name" autocomplete="name" maxlength="100" value="${esc(preForm.name)}"></div>
+        <div class="field"><label for="pre-email">Email</label><input id="pre-email" type="email" autocomplete="email" maxlength="200" value="${esc(preForm.email)}"></div>
+        <div class="pre-seat">
+          <div class="field"><label for="pre-row">Row</label><select id="pre-row"><option value="">Row</option>${pre.rows.map(r=>`<option ${preForm.row===r?'selected':''}>${r}</option>`).join('')}</select></div>
+          <div class="field"><label for="pre-seat">Seat number</label><input id="pre-seat" inputmode="numeric" maxlength="8" value="${esc(preForm.seat)}"></div>
+        </div>
+        <p class="pre-small">${seat?'Ordering for your family? Give one seat and we’ll bring the whole order there.':'Your seat, so we know where you are.'}${pre.accessible?` ${esc(pre.accessible)}: if you’re in one, give the space number.`:''}</p>
+        ${alcohol ? `<label class="check"><input type="checkbox" id="pre-18" ${preForm.over18?'checked':''}> <span>I’m 18 or over. Our volunteers may ask for ID.</span></label>` : ''}
+      </div>
+      <div class="pre-how">
+        ${seat ? `<p><b>Brought to your seat:</b> cold drinks, mince pies and snacks, during the interval.</p>` : ''}
+        ${collect ? `<p><b>Collect your mulled wine</b> from ${pre.collection_point?esc(pre.collection_point.charAt(0).toLowerCase()+pre.collection_point.slice(1)):'our express collection point'}. Show your confirmation email or give your order reference.</p>` : ''}
+      </div>` : ''}
+      <div class="pre-totals">
+        <div><span>Refreshments subtotal</span><span>${money(sub)}</span></div>
+        <div><span>Optional PTA donation</span><span>${money(don)}</span></div>
+        <div class="grand"><span>Total payable</span><span>${money(sub+don)}</span></div>
+      </div>
+      <button class="btn btn-coral btn-big" id="prePay" style="width:100%;" ${!lines.length||busy?'disabled':''}>${busy?'Taking you to payment…':`Pay ${money(sub+don)}`}</button>
+      <p class="pre-small" style="margin-top:12px;text-align:center;">Secure payment by Stripe. Apple Pay and Google Pay where available.</p>
+    </div>`;
+}
+
+function pageRefreshments(){
+  if(!pre && !preError){ loadPreorder(); return `<div class="wrap loading">Loading the menu…</div>`; }
+  if(!pre) return `<div class="wrap page-head"><div class="eyebrow">Refreshments</div><h1>Pre-orders aren’t open right now.</h1><p class="intro">${esc(preError || 'Check back before our next event.')}</p></div>`;
+  const bundles = pre.products.filter(p=>p.kind==='bundle'), singles = pre.products.filter(p=>p.kind!=='bundle');
+  const banner = {
+    soon: `Pre-orders open ${esc(fmtDayTime(pre.opens_at))}. Have a look at the menu in the meantime.`,
+    paused: 'Online pre-orders are paused for now. Please check back soon.',
+    closed: 'Online pre-orders are now closed. Refreshments will still be available to purchase at our stalls on the evening.',
+    full: 'Online pre-orders are now closed. Refreshments will still be available to purchase at our stalls on the evening.',
+  }[pre.state];
+  const count = preLines().reduce((t,l)=>t+l.qty,0);
+  return `
+    <div class="wrap page-head">
+      <div class="eyebrow">${esc(pre.title)}${pre.event_date?` · ${esc(fmtDay(pre.event_date+'T19:00:00Z'))}`:''}</div>
+      <h1>Skip the queues this Christmas</h1>
+      <p class="intro">Enjoy the Christmas performance without spending the interval queuing for refreshments. Pre-order your drinks and festive treats, and our Minster More volunteers will have everything ready for you during the interval.</p>
+      <p class="intro" style="margin-top:12px;">Every purchase helps fund the resources, experiences and opportunities that help Minster students get more from school.</p>
+      <ul class="pre-points">
+        <li>Order and pay online in advance</li><li>Cold drinks and snacks delivered to your seat</li><li>Mulled wine from our express collection point</li><li>All pre-orders served in the interval</li><li>Every purchase supports Minster More PTA</li>
+      </ul>
+      ${pre.state==='open' && pre.closes_at ? `<p class="pre-deadline">Order by <b>${esc(fmtDayTime(pre.closes_at))}</b></p>` : ''}
+      ${banner ? `<div class="pre-banner" role="status">${banner}</div>` : ''}
+    </div>
+    <div class="wrap">
+      <div class="${pre.state==='open'?'two-col':''} pre-layout">
+        <div>
+          ${bundles.length ? `<h2 class="pre-h2">Festive bundles</h2>
+          <div class="pre-bundles">${bundles.map(p=>`
+            <article class="pre-bundle ${p.sold_out?'out':''}">
+              <div class="pre-bundle-top"><h3>${esc(p.name)}</h3><span class="pre-price">${money(p.price_pence)}</span></div>
+              ${p.description?`<p>${esc(p.description)}</p>`:''}
+              <div class="pre-bundle-foot"><span class="pre-tags">${p.delivery.includes('collect')&&p.delivery.includes('seat')?'Seat delivery + collect':p.delivery.includes('collect')?'Collect':'Seat delivery'}</span>${preQty(p)}</div>
+            </article>`).join('')}</div>` : ''}
+          ${singles.length ? `<h2 class="pre-h2">Individual refreshments</h2>
+          <div class="pre-singles">${singles.map(p=>`
+            <div class="pre-single ${p.sold_out?'out':''}"><div><b>${esc(p.name)}</b><span class="pre-tags">${p.delivery.includes('collect')?'Collect':'To your seat'}</span></div><span class="pre-price">${money(p.price_pence)}</span>${preQty(p)}</div>`).join('')}</div>` : ''}
+          <p class="note" style="margin-top:18px;">Bundles have fixed contents, with no swaps. Red wine, gin and tonic, Sprite, Pringles, sweets and popcorn are on sale at the stalls on the evening.</p>
+        </div>
+        <div>${preBasket()}</div>
+      </div>
+    </div>
+    ${pre.state==='open' && count ? `<a class="pre-bar" href="#preOrder" data-pre-jump>View order · ${count} item${count===1?'':'s'} · ${money(preSubtotal()+preDonation())}</a>` : ''}`;
+}
+
+async function preCheckout(){
+  const lines = preLines(), alcohol = lines.some(l=>l.p.alcohol), don = preDonation();
+  if(!lines.length) return toast('Add something to your order first.');
+  if(preForm.donation==='other' && !don) return toast('Enter a donation of £1 or more, or choose No thanks.');
+  if(!preForm.name.trim()) return toast('Add your name.');
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(preForm.email.trim())) return toast('Add a valid email for your confirmation.');
+  if(!preForm.row || !preForm.seat.trim()) return toast('Add your row and seat number.');
+  if(alcohol && !preForm.over18) return toast('Please confirm you’re 18 or over to order alcohol.');
+  if(don>0 && preForm.giftAid && (!preForm.ga.full_name.trim() || !preForm.ga.house.trim() || !preForm.ga.postcode.trim())) return toast('For Gift Aid, add your full name, house name or number and postcode.');
+  busy = true; render();
+  try{
+    track('begin_checkout', {currency:'GBP', value:(preSubtotal()+don)/100, items:lines.map(l=>({item_name:l.p.name, item_category:'refreshments', quantity:l.qty, price:l.p.price_pence/100}))});
+    const r = await post('/api/refreshments/checkout', {event_id:pre.id, lines:lines.map(l=>({product_id:l.p.id, qty:l.qty})), donation_pence:don, gift_aid: don>0 && preForm.giftAid ? preForm.ga : null,
+      name:preForm.name.trim(), email:preForm.email.trim(), row:preForm.row, seat:preForm.seat.trim(), over18:preForm.over18});
+    location.href = r.url;
+  }catch(e){ busy = false; toast(e.message); pre = null; loadPreorder(); }
+}
+
 function pageRaffle(){
   const r = data.raffle;
   if(!r) return `
@@ -1390,6 +1591,16 @@ function pageAbout(){
 }
 
 function pageThanks(){
+  if(RETURN_PREORDER) return `
+    <div class="wrap page-head" style="padding-bottom:40px;">
+      <div class="eyebrow">Payment received</div>
+      <h1>Your interval order is booked.</h1>
+      <p class="intro">Your reference is <b style="font-size:1.3em;letter-spacing:.06em;">${esc(RETURN_PREORDER)}</b>. A confirmation email is on its way with what we’ll bring to your seat and anything to collect. Enjoy the show!</p>
+      <div class="hero-ctas" style="margin-top:28px;">
+        <a class="btn btn-coral btn-big" href="#/money">See where the money goes</a>
+        <a class="btn btn-ghost btn-big" href="#/events">See our events</a>
+      </div>
+    </div>`;
   return `
     <div class="wrap page-head" style="padding-bottom:40px;">
       <div class="eyebrow">Payment received</div>
@@ -1632,6 +1843,11 @@ document.addEventListener('click', e=>{
     return;
   }
   if(t.matches('[data-add-membership]')){ addToBasket({kind:'membership', label:'Future Makers', meta:'£10 a month · cancel any time', unit_pence:1000, qty:1}); return; }
+  if(t.dataset.preAdd){ const p = pre.products.find(x=>x.id===t.dataset.preAdd); if(p){ preCart[p.id] = 1; savePre(); render(); track('add_to_cart',{currency:'GBP', value:p.price_pence/100, items:[{item_name:p.name, item_category:'refreshments', quantity:1}]}); } return; }
+  if(t.dataset.preQty){ const [id,dl] = t.dataset.preQty.split(':'); const p = pre.products.find(x=>x.id===id); if(p){ const q = Math.max(0, Math.min(p.max, (preCart[id]||0)+Number(dl))); if(q) preCart[id]=q; else delete preCart[id]; savePre(); render(); } return; }
+  if(t.dataset.preDon !== undefined){ const v = t.dataset.preDon; preForm.donation = v==='other' ? 'other' : Number(v); savePre(); render(); if(v==='other') setTimeout(()=>document.getElementById('pre-other')?.focus(), 30); return; }
+  if(t.id === 'prePay'){ preCheckout(); return; }
+  if(t.hasAttribute('data-pre-jump')){ e.preventDefault(); document.getElementById('preOrder')?.scrollIntoView({behavior:'smooth', block:'start'}); return; }
   if(t.id === 'raffleMinus'){ raffleQty = Math.max(1, raffleQty-1); render(); return; }
   if(t.id === 'rafflePlus'){ raffleQty = Math.min(100, raffleQty+1); render(); return; }
   if(t.matches('[data-raffle-qty]')){ raffleQty = Number(t.dataset.raffleQty); render(); return; }
@@ -1688,6 +1904,20 @@ document.addEventListener('click', e=>{
 });
 
 document.addEventListener('input', e=>{
+  if(e.target.id && e.target.id.startsWith('pre-') && e.target.type !== 'checkbox'){
+    const k = e.target.id.slice(4);
+    if(k==='other'){
+      const before = preDonation() > 0; preForm.other = e.target.value; savePre();
+      const don = preDonation(), sub = preSubtotal();
+      if((don > 0) !== before){ render(); setTimeout(()=>document.getElementById('pre-other')?.focus(), 0); return; }
+      const rows = document.querySelectorAll('.pre-totals > div span:last-child');
+      if(rows.length === 3){ rows[1].textContent = money(don); rows[2].textContent = money(sub+don); }
+      const pay = document.getElementById('prePay'); if(pay && !busy) pay.textContent = `Pay ${money(sub+don)}`;
+      const boost = document.querySelector('[data-ga-boost="pre"]'); if(boost) boost.textContent = `+${money(Math.round(don*0.25))}`;
+      return;
+    }
+    if(['name','email','seat'].includes(k)){ preForm[k] = e.target.value; savePre(); return; }
+  }
   if(e.target.id && e.target.id.startsWith('of-') && e.target.type !== 'file'){ offerForm[e.target.id.slice(3)] = e.target.value; }
   const t = e.target;
   if(helpForm && t.id && t.id.startsWith('hp-') && t.type !== 'checkbox'){ helpForm[t.id.slice(3)] = t.value; return; }
@@ -1698,7 +1928,7 @@ document.addEventListener('input', e=>{
   }
   if(t.dataset.ga){
     const [prefix, field] = t.dataset.ga.split('.');
-    (prefix==='donation'?donation:basketForm).ga[field] = t.value; return;
+    (prefix==='donation'?donation:prefix==='pre'?preForm:basketForm).ga[field] = t.value; return;
   }
   if(t.id === 'sf-title') suggestForm.title = t.value;
   if(t.id === 'sf-blurb') suggestForm.blurb = t.value;
@@ -1718,10 +1948,13 @@ document.addEventListener('change', e=>{
   if(helpForm && t.id === 'hp-child'){ helpForm.child = t.checked; return; }
   if(helpForm && t.id === 'hp-consent'){ helpForm.consent = t.checked; return; }
   if(t.dataset.gaToggle){
-    const st = t.dataset.gaToggle==='donation' ? donation : basketForm;
+    const st = t.dataset.gaToggle==='donation' ? donation : t.dataset.gaToggle==='pre' ? preForm : basketForm;
     st.giftAid = t.checked;
+    if(t.dataset.gaToggle==='pre'){ savePre(); render(); return; }
     if(modal) renderModal(); if(page==='give' && (!modal || modal.type!=='donate')) render();
   }
+  if(t.id === 'pre-row'){ preForm.row = t.value; savePre(); }
+  if(t.id === 'pre-18') preForm.over18 = t.checked;
   if(t.id === 'sf-who') suggestForm.who = t.value;
   if(t.id === 'bk-18') basketForm.over18 = t.checked;
   if(t.id === 'bk-raffle' || t.id === 'rf-age') basketForm.raffleAge = t.checked;
@@ -1740,7 +1973,7 @@ function render(){
   document.getElementById('mobileNav').innerHTML = navHTML();
   updateBasketBtn();
   if(!data) return;
-  const fn = {home:pageHome, give:pageGive, money:pageMoney, suggest:pageSuggest, events:pageEvents, raffle:pageRaffle, wall:pageWall, about:pageAbout, privacy:pagePrivacy, thanks:pageThanks}[page];
+  const fn = {home:pageHome, give:pageGive, money:pageMoney, suggest:pageSuggest, events:pageEvents, raffle:pageRaffle, refreshments:pageRefreshments, wall:pageWall, about:pageAbout, privacy:pagePrivacy, thanks:pageThanks}[page];
   document.getElementById('app').innerHTML = fn();
   if(window._scrollTo){ const el = document.getElementById(window._scrollTo); window._scrollTo = null; if(el) setTimeout(()=>el.scrollIntoView({behavior:'smooth'}), 50); }
 }
@@ -1763,6 +1996,7 @@ const GA_ID = 'G-D7ZNH930GX';
 const CONSENT_KEY = 'mm_cookie_consent';
 const CONSENT_MONTHS = 12;
 const RETURN_SESSION = new URLSearchParams(location.search).get('session_id');
+const RETURN_PREORDER = (new URLSearchParams(location.search).get('preorder')||'').replace(/[^A-Z0-9]/g,'');
 let gaLoaded = false;
 
 function readConsent(){
