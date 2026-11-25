@@ -108,6 +108,23 @@
   .toast.err{background:var(--bad);}
   .winner{font-family:'Archivo',sans-serif;font-size:20px;font-weight:800;}
   .link-btn{color:var(--coral-dark);text-align:left;padding:0;text-decoration:underline;text-underline-offset:2px;}
+  .stock-check{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;}
+  .stock-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:20px;align-items:start;}
+  .stock-cat td{vertical-align:middle;}
+  .stock-cat tr.low td:first-child b{color:var(--coral-dark, #a3412e);}
+  .stock-cat tr.sub td{font-weight:700;border-top:2px solid var(--hairline, #e5e3ec);}
+  .qty{display:inline-flex;align-items:center;gap:6px;}
+  .qbtn{width:34px;height:34px;border-radius:999px;border:1.5px solid var(--hairline, #d8d6e0);background:transparent;font:700 18px/1 inherit;color:inherit;cursor:pointer;}
+  .qbtn:hover{border-color:currentColor;}
+  .qin{width:70px;text-align:center;font:700 16px inherit;padding:6px 4px;border-radius:10px;border:1.5px solid var(--hairline, #d8d6e0);}
+  .stock-grand{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:18px;}
+  .stock-grand b{font-size:26px;}
+  .shop-add{display:grid;grid-template-columns:1fr auto auto;gap:8px;margin:12px 0;}
+  .shop-add input,.shop-add select{padding:9px 10px;border-radius:10px;border:1.5px solid var(--hairline, #d8d6e0);font:inherit;min-width:0;}
+  .shop-list{list-style:none;margin:0;padding:0;display:grid;gap:6px;}
+  .shop-list li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--hairline, #eee);}
+  .shop-list li.done b{text-decoration:line-through;opacity:.6;}
+  @media (max-width:900px){ .stock-grid{grid-template-columns:1fr;} }
   .raffle-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;}
   .thumb{width:36px;height:36px;border-radius:50%;object-fit:cover;background:var(--tint);}
 
@@ -268,6 +285,17 @@ const TABLES = {
     ],
     cols:[['', r=>r.logo_url?`<img src="${esc(r.logo_url)}" alt="" style="max-height:36px;max-width:80px;object-fit:contain;">`:''], ['Name', r=>`<b>${esc(r.name)}</b>${r.note?`<br><span class="muted">${esc(r.note)}</span>`:''}`], ['Type', r=>`${KIND_LABEL[r.kind]}${r.tier?` · ${esc(r.tier)}`:''}`], ['', r=>r.approved?'':'<span class="chip coral">Awaiting approval</span>']],
     extra: r=> r.approved ? '' : `<button class="btn btn-ok btn-sm" data-approve-supporter="${r.id}">Approve</button>`,
+  },
+  stock_items: {
+    title:'Stock item', single:'item', order:[['sort',true]],
+    fields:[
+      {k:'product', label:'Product', type:'text', req:true},
+      {k:'category', label:'Category', type:'text', req:true, def:()=>window._stockCat||'', hint:'e.g. Alcohol, Soft drinks, Snacks. Items are grouped by this.'},
+      {k:'quantity', label:'Quantity in stock', type:'number', def:0},
+      {k:'low_at', label:'Flag as low at', type:'number', hint:'Optional. Shown as “Low” when stock is at or below this.'},
+      {k:'sort', label:'Order', type:'number', def:()=>((window._stock||[]).reduce((m,i)=>Math.max(m,i.sort||0),0)+1), hint:'Lower numbers first'},
+    ],
+    cols:[['Product', r=>`<b>${esc(r.product)}</b>`], ['Category', r=>esc(r.category)], ['Qty', r=>r.quantity]],
   },
   raffles: {
     title:'Raffle details', single:'raffle', order:[['draw_at',false]],
@@ -766,6 +794,97 @@ async function raffleView(){
     </div>`;
 }
 
+/* ---------------- STOCK ---------------- */
+const SHOP_ACTIONS = ['Purchase','Check','Collect','Return'];
+const isLow = i => i.low_at != null && i.quantity <= i.low_at;
+function stockGroups(items){
+  const g = {};
+  items.forEach(i=>{ (g[i.category||'Other'] = g[i.category||'Other'] || []).push(i); });
+  return Object.entries(g);
+}
+async function stockView(){
+  const [items, checks, shop] = await Promise.all([
+    sb.from('stock_items').select('*').order('sort').order('product').then(check),
+    sb.from('stock_checks').select('id,checked_at,checked_by,total,note').order('checked_at',{ascending:false}).limit(12).then(check),
+    sb.from('shopping_list').select('*').order('done').order('created_at').then(check),
+  ]);
+  window._stock = items;
+  const groups = stockGroups(items);
+  const total = items.reduce((t,i)=>t+i.quantity,0);
+  const low = items.filter(isLow);
+  const last = checks[0];
+  const changedSince = last ? items.some(i=>new Date(i.updated_at) > new Date(last.checked_at)) : true;
+  const open = shop.filter(x=>!x.done);
+  return `
+    <div class="head"><div><h1>Stock</h1><p>What’s in the PTA cupboard, plus the shopping list. Change a number and it saves straight away.</p></div>
+      <div class="actions"><button class="btn btn-ghost" id="stockExport">Export CSV</button><button class="btn btn-coral" data-stock-new>Add item</button></div></div>
+    <div class="notice stock-check"><div><b>Last stock check: ${last ? d(last.checked_at) : 'none yet'}</b>${last ? ` · ${last.total} items${last.checked_by?` · ${esc(last.checked_by)}`:''}` : ''}${changedSince && last ? `<br><span class="muted">Stock has changed since then.</span>` : ''}</div>
+      <button class="btn btn-ok btn-sm" id="stockCheck">Record stock check today</button></div>
+    <div class="stats">
+      <div class="stat"><div class="l">Total stock</div><div class="n">${total}</div></div>
+      ${groups.slice(0,3).map(([c,list])=>`<div class="stat"><div class="l">${esc(c)}</div><div class="n">${list.reduce((t,i)=>t+i.quantity,0)}</div></div>`).join('')}
+    </div>
+    ${low.length ? `<div class="notice"><b>Running low:</b> ${low.map(i=>`${esc(i.product)} (${i.quantity})`).join(', ')}. <button class="link-btn" id="lowToShop">Add to shopping list</button></div>` : ''}
+    <div class="stock-grid">
+      <div>
+        ${groups.length ? groups.map(([cat,list])=>`
+        <div class="card table-wrap stock-cat">
+          <div class="raffle-head" style="margin-bottom:8px;"><h2>${esc(cat)}</h2><button class="btn btn-ghost btn-sm" data-stock-new="${esc(cat)}">Add</button></div>
+          <table><thead><tr><th>Product</th><th class="r">Stock</th><th></th></tr></thead><tbody>
+          ${list.map(i=>`<tr class="${isLow(i)?'low':''}">
+            <td><b>${esc(i.product)}</b>${isLow(i)?' <span class="chip coral">Low</span>':''}</td>
+            <td class="r"><div class="qty"><button class="qbtn" data-qty="${i.id}:-1" aria-label="One fewer ${esc(i.product)}">−</button><input type="number" min="0" class="qin" data-qty-set="${i.id}" value="${i.quantity}" aria-label="${esc(i.product)} quantity"><button class="qbtn" data-qty="${i.id}:1" aria-label="One more ${esc(i.product)}">+</button></div></td>
+            <td><div class="actions"><button class="btn btn-ghost btn-sm" data-stock-edit="${i.id}">Edit</button><button class="btn-danger" data-del="stock_items:${i.id}">Delete</button></div></td></tr>`).join('')}
+          <tr class="sub"><td>Total ${esc(cat.toLowerCase())}</td><td class="r"><b data-cat-total="${esc(cat)}">${list.reduce((t,i)=>t+i.quantity,0)}</b></td><td></td></tr>
+          </tbody></table>
+        </div>`).join('') : `<div class="empty">No stock yet. Add your first item.</div>`}
+        ${items.length ? `<div class="card stock-grand"><span>Total stock</span><b id="stockTotal">${total}</b></div>` : ''}
+      </div>
+      <div>
+        <div class="card">
+          <h2>Shopping list ${open.length?`<span class="badge">${open.length}</span>`:''}</h2>
+          <div class="shop-add">
+            <input id="shopProduct" placeholder="Product, e.g. Milk" maxlength="80" aria-label="Product">
+            <select id="shopAction" aria-label="Action">${SHOP_ACTIONS.map(a=>`<option>${a}</option>`).join('')}</select>
+            <button class="btn btn-coral btn-sm" id="shopAdd">Add</button>
+          </div>
+          ${shop.length ? `<ul class="shop-list">${shop.map(x=>`<li class="${x.done?'done':''}">
+            <label class="check"><input type="checkbox" data-shop-done="${x.id}" ${x.done?'checked':''}> <span><b>${esc(x.product)}</b> <span class="muted">· ${esc(x.action)}</span></span></label>
+            <button class="btn-danger" data-del="shopping_list:${x.id}">Remove</button></li>`).join('')}</ul>
+            ${shop.some(x=>x.done)?`<button class="link-btn" id="shopClear">Clear ticked items</button>`:''}` : `<p class="muted" style="margin:12px 0 0;">Nothing to buy.</p>`}
+        </div>
+        <div class="card">
+          <h2>Stock checks</h2>
+          ${checks.length ? `<table style="margin-top:8px;"><tbody>${checks.map(c=>`<tr><td>${d(c.checked_at)}<br><span class="muted">${esc(c.checked_by||'')}</span></td><td class="r"><b>${c.total}</b></td><td><button class="btn btn-ghost btn-sm" data-check-csv="${c.id}">CSV</button></td></tr>`).join('')}</tbody></table>` : `<p class="muted">None yet.</p>`}
+        </div>
+      </div>
+    </div>`;
+}
+function stockTotalsRefresh(){
+  const items = window._stock || [];
+  const el = $('#stockTotal'); if(el) el.textContent = items.reduce((t,i)=>t+i.quantity,0);
+  stockGroups(items).forEach(([c,list])=>{ const e = document.querySelector(`[data-cat-total="${CSS.escape(c)}"]`); if(e) e.textContent = list.reduce((t,i)=>t+i.quantity,0); });
+}
+async function saveQty(id, qty){
+  const item = (window._stock||[]).find(i=>i.id===id); if(!item) return;
+  qty = Math.max(0, Math.round(Number(qty)||0));
+  const before = item.quantity; item.quantity = qty;
+  const input = document.querySelector(`[data-qty-set="${id}"]`); if(input) input.value = qty;
+  stockTotalsRefresh();
+  const {error} = await sb.from('stock_items').update({quantity:qty, updated_at:new Date().toISOString()}).eq('id',id);
+  if(error){ item.quantity = before; if(input) input.value = before; stockTotalsRefresh(); toast(error.message, true); return; }
+  const wasLow = item.low_at!=null && before<=item.low_at, nowLow = isLow(item);
+  if(wasLow !== nowLow) render();
+}
+document.addEventListener('change', async e=>{
+  const t = e.target;
+  if(t.dataset && t.dataset.qtySet){ saveQty(t.dataset.qtySet, t.value); return; }
+  if(t.dataset && t.dataset.shopDone){
+    check(await sb.from('shopping_list').update({done:t.checked}).eq('id',t.dataset.shopDone)); render(); return;
+  }
+});
+document.addEventListener('keydown', e=>{ if(e.key==='Enter' && e.target.id==='shopProduct'){ e.preventDefault(); document.getElementById('shopAdd')?.click(); } });
+
 async function giftAidView(){
   const rows = check(await sb.from('funds').select('*, gift_aid_declarations(*)').not('gift_aid_id','is',null).order('received_on',{ascending:false}));
   window._giftaid = rows;
@@ -825,7 +944,7 @@ async function adminsView(){
 /* ---------------- SHELL ---------------- */
 const NAV = [
   ['dashboard','Totaliser'], ['ideas','Suggestions'], ['pots','Funding priorities'], ['events','Events'], ['planning','Event planning'], ['rota','Volunteer rota'],
-  ['payments','Payments'], ['raffle','Raffle'], ['fifty','50:50 Club'], ['giftaid','Gift Aid'],
+  ['payments','Payments'], ['raffle','Raffle'], ['fifty','50:50 Club'], ['giftaid','Gift Aid'], ['stock','Stock'],
   ['documents','Documents'], ['privatedocs','Committee files'], ['news','News'], ['committee','Committee'], ['supporters','Supporters wall'],
   ['inbox','Volunteers'], ['settings','Settings'], ['admins','Admins'],
 ];
@@ -866,6 +985,7 @@ async function render(){
     else if(view==='payments') html = await paymentsView();
     else if(view==='fifty') html = await fiftyView();
     else if(view==='raffle') html = await raffleView();
+    else if(view==='stock') html = await stockView();
     else if(view==='giftaid') html = await giftAidView();
     else if(view==='settings') html = await settingsView();
     else if(view==='admins') html = await adminsView();
@@ -874,7 +994,7 @@ async function render(){
   }catch(e){
     const needsUpdate = /column .* does not exist|could not find .* column|could not find the table|relation .* does not exist/i.test(e.message||'');
     $('#main').innerHTML = needsUpdate
-      ? `<div class="notice"><b>Database update needed.</b> In Supabase, open SQL Editor → New query, paste any files from <code>supabase/migrations/</code> on GitHub you haven't run yet (the newest is <code>2026-11-19-raffle.sql</code>) and click Run. Then refresh this page.</div>`
+      ? `<div class="notice"><b>Database update needed.</b> In Supabase, open SQL Editor → New query, paste any files from <code>supabase/migrations/</code> on GitHub you haven't run yet (the newest is <code>2026-11-25-stock.sql</code>) and click Run. Then refresh this page.</div>`
       : `<div class="empty">Couldn't load this page: ${esc(e.message||e)}</div>`;
   }
 }
@@ -1008,6 +1128,39 @@ document.addEventListener('click', async e=>{
     if(t.id==='copyCal'){ const el=$('#calUrl'); el.select(); try{ await navigator.clipboard.writeText(el.value); toast('Calendar link copied.'); }catch(e){ document.execCommand('copy'); toast('Calendar link copied.'); } return; }
     if(t.hasAttribute('data-plan-new')){ window._returnTo='planning'; view='events'; sub=null; editing='new'; await render(); window.scrollTo(0,0); return; }
     if(t.dataset.planEdit){ window._returnTo='planning'; view='events'; sub=null; editing=t.dataset.planEdit; await render(); window.scrollTo(0,0); return; }
+    if(t.hasAttribute('data-stock-new')){ window._stockCat = t.dataset.stockNew||''; window._returnTo='stock'; view='stock_items'; sub=null; editing='new'; await render(); window.scrollTo(0,0); return; }
+    if(t.dataset.stockEdit){ window._returnTo='stock'; view='stock_items'; sub=null; editing=t.dataset.stockEdit; await render(); window.scrollTo(0,0); return; }
+    if(t.dataset.qty){ const [id,delta] = t.dataset.qty.split(':'); const it=(window._stock||[]).find(i=>i.id===id); if(it) saveQty(id, it.quantity + Number(delta)); return; }
+    if(t.id==='stockCheck'){
+      const items = window._stock||[];
+      if(!confirm(`Record a stock check for today with these figures (${items.reduce((a,i)=>a+i.quantity,0)} items)?`)) return;
+      check(await sb.from('stock_checks').insert({checked_by:user.email, total:items.reduce((a,i)=>a+i.quantity,0), items:items.map(i=>({category:i.category, product:i.product, quantity:i.quantity}))}));
+      toast('Stock check recorded.'); render(); return;
+    }
+    if(t.id==='stockExport'){
+      const items = window._stock||[];
+      const rows=[['Category','Product','Stock quantity']];
+      stockGroups(items).forEach(([c,list])=>{ list.forEach(i=>rows.push([c,i.product,i.quantity])); rows.push(['','Total '+c.toLowerCase(),list.reduce((a,i)=>a+i.quantity,0)]); });
+      rows.push(['','TOTAL STOCK',items.reduce((a,i)=>a+i.quantity,0)]);
+      csv(rows, `pta-stock-${new Date().toISOString().slice(0,10)}.csv`); return;
+    }
+    if(t.dataset.checkCsv){
+      const c = check(await sb.from('stock_checks').select('*').eq('id',t.dataset.checkCsv).single());
+      csv([['Category','Product','Stock quantity'], ...(c.items||[]).map(i=>[i.category,i.product,i.quantity]), ['','TOTAL STOCK',c.total]], `pta-stock-check-${c.checked_at.slice(0,10)}.csv`); return;
+    }
+    if(t.id==='shopAdd'){
+      const product = ($('#shopProduct').value||'').trim(); if(!product) return toast('Type a product first.', true);
+      check(await sb.from('shopping_list').insert({product, action:$('#shopAction').value})); render(); return;
+    }
+    if(t.id==='lowToShop'){
+      const items=(window._stock||[]).filter(isLow);
+      const {data:have} = await sb.from('shopping_list').select('product').eq('done',false);
+      const existing = new Set((have||[]).map(x=>x.product.toLowerCase()));
+      const add = items.filter(i=>!existing.has(i.product.toLowerCase())).map(i=>({product:i.product, action:'Purchase'}));
+      if(add.length) check(await sb.from('shopping_list').insert(add));
+      toast(add.length ? `Added ${add.length} to the shopping list.` : 'Already on the list.'); render(); return;
+    }
+    if(t.id==='shopClear'){ check(await sb.from('shopping_list').delete().eq('done',true)); render(); return; }
     if(t.hasAttribute('data-raffle-new')){ window._returnTo='raffle'; view='raffles'; sub=null; editing='new'; await render(); window.scrollTo(0,0); return; }
     if(t.dataset.raffleEdit){ window._returnTo='raffle'; view='raffles'; sub=null; editing=t.dataset.raffleEdit; await render(); window.scrollTo(0,0); return; }
     if(t.hasAttribute('data-prize-new')){ TABLES.raffle_prizes.fixed = {raffle_id: window._raffle.id}; window._returnTo='raffle'; view='raffle_prizes'; sub=null; editing='new'; await render(); window.scrollTo(0,0); return; }
