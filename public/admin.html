@@ -796,7 +796,7 @@ async function raffleView(){
           <p class="muted" style="margin:6px 0 0;">${money(r.ticket_price_pence)} a ticket · draw ${d(r.draw_at,true)} · ${r.min_age}+ ${r.max_tickets?`· max ${r.max_tickets} tickets`:''}</p></div>
         <span class="chip ${st==='live'?'ok':st==='drawn'?'cyan':'coral'}">${RAFFLE_STATUS[st][0]}</span>
       </div>
-      <div class="actions" style="margin-top:16px;">${actions}<button class="btn btn-ghost" data-raffle-edit="${r.id}">Edit details</button><a class="btn btn-ghost" href="/#/raffle" target="_blank">View on website ↗</a></div>
+      <div class="actions" style="margin-top:16px;">${actions}<button class="btn btn-ghost" data-raffle-edit="${r.id}">Edit details</button><a class="btn btn-ghost" href="/#/raffle" target="_blank">View on website ↗</a><span style="flex:1"></span><button class="btn-danger" data-raffle-del="${r.id}" data-sold="${sold}">Delete raffle</button></div>
     </div>
     <div class="stats">
       <div class="stat"><div class="l">Tickets sold</div><div class="n">${sold}${r.max_tickets?` <span class="muted" style="font-size:16px;">of ${r.max_tickets}</span>`:''}</div></div>
@@ -1431,6 +1431,14 @@ document.addEventListener('click', async e=>{
       const {count} = await sb.from('raffle_prizes').select('id',{count:'exact',head:true}).eq('raffle_id',r.id).eq('approved',true);
       check(await sb.from('raffle_prizes').update({approved:true, raffle_id:r.id, sort:(count||0)+1}).eq('id',t.dataset.offerAccept));
       toast('Added to the raffle.'); render(); return;
+    }
+    if(t.dataset.raffleDel){
+      const r = window._raffle, sold = Number(t.dataset.sold)||0;
+      const warn = sold ? `\n\n${sold} ticket${sold===1?' has':'s have'} been sold. Deleting removes the ticket list too (payments stay in Stripe and on the Payments page). Only do this for a test raffle.` : '';
+      if(!confirm(`Delete “${r.title}” and its prizes? It will disappear from the website. This can’t be undone.${warn}`)) return;
+      if(sold && prompt('Type DELETE to confirm') !== 'DELETE') return;
+      check(await sb.from('raffles').delete().eq('id', r.id));
+      sub = null; toast('Raffle deleted.'); render(); return;
     }
     if(t.dataset.raffleStatus){
       const r = window._raffle, to = t.dataset.raffleStatus;
