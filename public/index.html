@@ -591,7 +591,7 @@ const NAV = [
   {key:'suggest', label:'Suggest & vote'},
   {key:'events',  label:'Events'},
   {key:'refreshments', label:'Refreshments', when:()=>data && data.preorder},
-  {key:'raffle',  label:'Raffle', when:()=>data && data.raffle},
+  {key:'raffle',  label:'Raffle'},
   {key:'wall',    label:'Supporters'},
   {key:'about',   label:'About'},
 ];
@@ -1329,8 +1329,8 @@ async function preCheckout(){
 function pageRaffle(){
   const r = data.raffle;
   if(!r) return `
-    <div class="wrap page-head"><div class="eyebrow">Raffle</div><h1>No raffle running right now.</h1>
-      <p class="intro">Our next raffle is on its way. If your business would like to offer a prize, we’d love to hear from you.</p></div>
+    <div class="wrap page-head"><div class="eyebrow">Raffle</div><h1>Our raffle is coming soon.</h1>
+      <p class="intro">Tickets go on sale shortly, with prizes from local businesses. If your business would like to offer a prize, we’d love to hear from you.</p></div>
     <div class="wrap">${offerBlock(null)}</div>`;
   const total = r.prizes.reduce((s,p)=>s+(p.value_pence||0),0);
   const sponsors = [...new Map(r.prizes.filter(p=>p.sponsor_name).map(p=>[p.sponsor_name, p])).values()];
